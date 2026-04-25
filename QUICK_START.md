@@ -17,7 +17,7 @@
 ```bash
 cat > .env << 'EOF'
 DB_URL=jdbc:postgresql://localhost:5432/restaurant_db
-DB_USERNAME=leonkul
+DB_USERNAME=postgres
 DB_PASSWORD=
 PORT=8080
 EOF
@@ -26,12 +26,12 @@ EOF
 Или создайте файл вручную с содержимым:
 ```
 DB_URL=jdbc:postgresql://localhost:5432/restaurant_db
-DB_USERNAME=leonkul
+DB_USERNAME=postgres
 DB_PASSWORD=
 PORT=8080
 ```
 
-**Примечание:** Замените `leonkul` на ваше имя пользователя (проверьте командой `whoami`).
+**Примечание:** На macOS с Homebrew часто удобнее `DB_USERNAME=$(whoami)` вместо `postgres`; подставьте свою роль PostgreSQL.
 
 ## Шаг 1: Подготовка БД
 

@@ -32,10 +32,12 @@ export DB_URL="jdbc:postgresql://localhost:5432/restaurant_db"
 
 3. Или создайте файл `.env` в корне проекта:
 ```
-DB_USERNAME=leonkul
+DB_USERNAME=postgres
 DB_PASSWORD=
 DB_URL=jdbc:postgresql://localhost:5432/restaurant_db
 ```
+
+(или `DB_USERNAME` = результат `whoami`, если у вас нет роли `postgres` локально)
 
 ## Решение 2: Создать роль postgres
 

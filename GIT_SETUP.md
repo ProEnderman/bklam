@@ -7,9 +7,11 @@
 ## Шаг 2: Добавление всех файлов
 
 ```bash
-cd /Users/leonkul/COURSE_PROJECT
+cd /path/to/your/clone
 git add .
 ```
+
+(используйте реальный путь к клону; не коммитьте `git add .`, если в проект попадают кэши вроде `.gradle-home/` — сначала `.gitignore` и `git status`.)
 
 ## Шаг 3: Первый коммит
 

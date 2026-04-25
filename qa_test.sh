@@ -1,13 +1,16 @@
 #!/bin/bash
 
 BASE=http://localhost:8080
-REPORT_FILE="/Users/leonkul/COURSE_PROJECT/QA_REPORT.md"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Override with QA_REPORT_FILE=/path if needed; default: next to this script
+REPORT_FILE="${QA_REPORT_FILE:-$SCRIPT_DIR/QA_REPORT.md}"
 COOKIE_JAR_HA="/tmp/qa_ha.txt"
 COOKIE_JAR_A1="/tmp/qa_a1.txt"
 COOKIE_JAR_A2="/tmp/qa_a2.txt"
 COOKIE_JAR_W="/tmp/qa_w.txt"
 DB="${PGDATABASE:-restaurant_db_dev}"
-DBU="leonkul"
+# psql user: align with docker-compose / .env.example (postgres), or: export PGUSER=$(whoami)
+DBU="${PGUSER:-postgres}"
 KNOWN_CODE="123456"
 KNOWN_CODE_HASH='$2b$12$qrvzpD9qeEfUubFIjXo74.06DgsTIpX235a078m9hgW060HXqFUYW'
 

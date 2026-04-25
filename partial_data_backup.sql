@@ -62,7 +62,7 @@ ALTER SEQUENCE public.booking_orders_id_seq OWNED BY public.booking_orders.id;
 
 
 --
--- Name: daily_branch_revenue; Type: TABLE; Schema: public; Owner: leonkul
+-- Name: daily_branch_revenue; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.daily_branch_revenue (
@@ -79,10 +79,10 @@ CREATE TABLE public.daily_branch_revenue (
 );
 
 
-ALTER TABLE public.daily_branch_revenue OWNER TO leonkul;
+ALTER TABLE public.daily_branch_revenue OWNER TO postgres;
 
 --
--- Name: daily_branch_revenue_id_seq; Type: SEQUENCE; Schema: public; Owner: leonkul
+-- Name: daily_branch_revenue_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
 CREATE SEQUENCE public.daily_branch_revenue_id_seq
@@ -93,17 +93,17 @@ CREATE SEQUENCE public.daily_branch_revenue_id_seq
     CACHE 1;
 
 
-ALTER TABLE public.daily_branch_revenue_id_seq OWNER TO leonkul;
+ALTER TABLE public.daily_branch_revenue_id_seq OWNER TO postgres;
 
 --
--- Name: daily_branch_revenue_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: leonkul
+-- Name: daily_branch_revenue_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.daily_branch_revenue_id_seq OWNED BY public.daily_branch_revenue.id;
 
 
 --
--- Name: employee_utilization; Type: TABLE; Schema: public; Owner: leonkul
+-- Name: employee_utilization; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.employee_utilization (
@@ -120,10 +120,10 @@ CREATE TABLE public.employee_utilization (
 );
 
 
-ALTER TABLE public.employee_utilization OWNER TO leonkul;
+ALTER TABLE public.employee_utilization OWNER TO postgres;
 
 --
--- Name: employee_utilization_id_seq; Type: SEQUENCE; Schema: public; Owner: leonkul
+-- Name: employee_utilization_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
 CREATE SEQUENCE public.employee_utilization_id_seq
@@ -134,17 +134,17 @@ CREATE SEQUENCE public.employee_utilization_id_seq
     CACHE 1;
 
 
-ALTER TABLE public.employee_utilization_id_seq OWNER TO leonkul;
+ALTER TABLE public.employee_utilization_id_seq OWNER TO postgres;
 
 --
--- Name: employee_utilization_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: leonkul
+-- Name: employee_utilization_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.employee_utilization_id_seq OWNED BY public.employee_utilization.id;
 
 
 --
--- Name: loyalty_campaign_segments; Type: TABLE; Schema: public; Owner: leonkul
+-- Name: loyalty_campaign_segments; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.loyalty_campaign_segments (
@@ -153,10 +153,10 @@ CREATE TABLE public.loyalty_campaign_segments (
 );
 
 
-ALTER TABLE public.loyalty_campaign_segments OWNER TO leonkul;
+ALTER TABLE public.loyalty_campaign_segments OWNER TO postgres;
 
 --
--- Name: pricing_rule_impact; Type: TABLE; Schema: public; Owner: leonkul
+-- Name: pricing_rule_impact; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.pricing_rule_impact (
@@ -172,10 +172,10 @@ CREATE TABLE public.pricing_rule_impact (
 );
 
 
-ALTER TABLE public.pricing_rule_impact OWNER TO leonkul;
+ALTER TABLE public.pricing_rule_impact OWNER TO postgres;
 
 --
--- Name: pricing_rule_impact_id_seq; Type: SEQUENCE; Schema: public; Owner: leonkul
+-- Name: pricing_rule_impact_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
 CREATE SEQUENCE public.pricing_rule_impact_id_seq
@@ -186,17 +186,17 @@ CREATE SEQUENCE public.pricing_rule_impact_id_seq
     CACHE 1;
 
 
-ALTER TABLE public.pricing_rule_impact_id_seq OWNER TO leonkul;
+ALTER TABLE public.pricing_rule_impact_id_seq OWNER TO postgres;
 
 --
--- Name: pricing_rule_impact_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: leonkul
+-- Name: pricing_rule_impact_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.pricing_rule_impact_id_seq OWNED BY public.pricing_rule_impact.id;
 
 
 --
--- Name: service_performance; Type: TABLE; Schema: public; Owner: leonkul
+-- Name: service_performance; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.service_performance (
@@ -212,10 +212,10 @@ CREATE TABLE public.service_performance (
 );
 
 
-ALTER TABLE public.service_performance OWNER TO leonkul;
+ALTER TABLE public.service_performance OWNER TO postgres;
 
 --
--- Name: service_performance_id_seq; Type: SEQUENCE; Schema: public; Owner: leonkul
+-- Name: service_performance_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
 CREATE SEQUENCE public.service_performance_id_seq
@@ -226,17 +226,17 @@ CREATE SEQUENCE public.service_performance_id_seq
     CACHE 1;
 
 
-ALTER TABLE public.service_performance_id_seq OWNER TO leonkul;
+ALTER TABLE public.service_performance_id_seq OWNER TO postgres;
 
 --
--- Name: service_performance_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: leonkul
+-- Name: service_performance_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.service_performance_id_seq OWNED BY public.service_performance.id;
 
 
 --
--- Name: stop_check_analytics; Type: TABLE; Schema: public; Owner: leonkul
+-- Name: stop_check_analytics; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.stop_check_analytics (
@@ -252,10 +252,10 @@ CREATE TABLE public.stop_check_analytics (
 );
 
 
-ALTER TABLE public.stop_check_analytics OWNER TO leonkul;
+ALTER TABLE public.stop_check_analytics OWNER TO postgres;
 
 --
--- Name: stop_check_analytics_id_seq; Type: SEQUENCE; Schema: public; Owner: leonkul
+-- Name: stop_check_analytics_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
 CREATE SEQUENCE public.stop_check_analytics_id_seq
@@ -266,17 +266,17 @@ CREATE SEQUENCE public.stop_check_analytics_id_seq
     CACHE 1;
 
 
-ALTER TABLE public.stop_check_analytics_id_seq OWNER TO leonkul;
+ALTER TABLE public.stop_check_analytics_id_seq OWNER TO postgres;
 
 --
--- Name: stop_check_analytics_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: leonkul
+-- Name: stop_check_analytics_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.stop_check_analytics_id_seq OWNED BY public.stop_check_analytics.id;
 
 
 --
--- Name: tariff_calendars; Type: TABLE; Schema: public; Owner: leonkul
+-- Name: tariff_calendars; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.tariff_calendars (
@@ -294,10 +294,10 @@ CREATE TABLE public.tariff_calendars (
 );
 
 
-ALTER TABLE public.tariff_calendars OWNER TO leonkul;
+ALTER TABLE public.tariff_calendars OWNER TO postgres;
 
 --
--- Name: tariff_calendars_id_seq; Type: SEQUENCE; Schema: public; Owner: leonkul
+-- Name: tariff_calendars_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
 CREATE SEQUENCE public.tariff_calendars_id_seq
@@ -308,10 +308,10 @@ CREATE SEQUENCE public.tariff_calendars_id_seq
     CACHE 1;
 
 
-ALTER TABLE public.tariff_calendars_id_seq OWNER TO leonkul;
+ALTER TABLE public.tariff_calendars_id_seq OWNER TO postgres;
 
 --
--- Name: tariff_calendars_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: leonkul
+-- Name: tariff_calendars_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.tariff_calendars_id_seq OWNED BY public.tariff_calendars.id;
@@ -325,42 +325,42 @@ ALTER TABLE ONLY public.booking_orders ALTER COLUMN id SET DEFAULT nextval('publ
 
 
 --
--- Name: daily_branch_revenue id; Type: DEFAULT; Schema: public; Owner: leonkul
+-- Name: daily_branch_revenue id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.daily_branch_revenue ALTER COLUMN id SET DEFAULT nextval('public.daily_branch_revenue_id_seq'::regclass);
 
 
 --
--- Name: employee_utilization id; Type: DEFAULT; Schema: public; Owner: leonkul
+-- Name: employee_utilization id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.employee_utilization ALTER COLUMN id SET DEFAULT nextval('public.employee_utilization_id_seq'::regclass);
 
 
 --
--- Name: pricing_rule_impact id; Type: DEFAULT; Schema: public; Owner: leonkul
+-- Name: pricing_rule_impact id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.pricing_rule_impact ALTER COLUMN id SET DEFAULT nextval('public.pricing_rule_impact_id_seq'::regclass);
 
 
 --
--- Name: service_performance id; Type: DEFAULT; Schema: public; Owner: leonkul
+-- Name: service_performance id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.service_performance ALTER COLUMN id SET DEFAULT nextval('public.service_performance_id_seq'::regclass);
 
 
 --
--- Name: stop_check_analytics id; Type: DEFAULT; Schema: public; Owner: leonkul
+-- Name: stop_check_analytics id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.stop_check_analytics ALTER COLUMN id SET DEFAULT nextval('public.stop_check_analytics_id_seq'::regclass);
 
 
 --
--- Name: tariff_calendars id; Type: DEFAULT; Schema: public; Owner: leonkul
+-- Name: tariff_calendars id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.tariff_calendars ALTER COLUMN id SET DEFAULT nextval('public.tariff_calendars_id_seq'::regclass);
@@ -375,7 +375,7 @@ COPY public.booking_orders (id, branch_id, customer_name, customer_phone, create
 
 
 --
--- Data for Name: daily_branch_revenue; Type: TABLE DATA; Schema: public; Owner: leonkul
+-- Data for Name: daily_branch_revenue; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
 COPY public.daily_branch_revenue (id, restaurant_id, date, total_revenue, order_count, average_check, discount_amount, tax_amount, created_at, updated_at) FROM stdin;
@@ -383,7 +383,7 @@ COPY public.daily_branch_revenue (id, restaurant_id, date, total_revenue, order_
 
 
 --
--- Data for Name: employee_utilization; Type: TABLE DATA; Schema: public; Owner: leonkul
+-- Data for Name: employee_utilization; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
 COPY public.employee_utilization (id, employee_id, restaurant_id, date, shift_hours, worked_hours, revenue_per_hour, order_count, created_at, updated_at) FROM stdin;
@@ -391,7 +391,7 @@ COPY public.employee_utilization (id, employee_id, restaurant_id, date, shift_ho
 
 
 --
--- Data for Name: loyalty_campaign_segments; Type: TABLE DATA; Schema: public; Owner: leonkul
+-- Data for Name: loyalty_campaign_segments; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
 COPY public.loyalty_campaign_segments (campaign_id, segment_id) FROM stdin;
@@ -399,7 +399,7 @@ COPY public.loyalty_campaign_segments (campaign_id, segment_id) FROM stdin;
 
 
 --
--- Data for Name: pricing_rule_impact; Type: TABLE DATA; Schema: public; Owner: leonkul
+-- Data for Name: pricing_rule_impact; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
 COPY public.pricing_rule_impact (id, tariff_rule_id, restaurant_id, date, trigger_count, total_impact, average_impact, created_at, updated_at) FROM stdin;
@@ -407,7 +407,7 @@ COPY public.pricing_rule_impact (id, tariff_rule_id, restaurant_id, date, trigge
 
 
 --
--- Data for Name: service_performance; Type: TABLE DATA; Schema: public; Owner: leonkul
+-- Data for Name: service_performance; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
 COPY public.service_performance (id, restaurant_id, dish_id, date, order_count, total_revenue, average_price, created_at, updated_at) FROM stdin;
@@ -415,7 +415,7 @@ COPY public.service_performance (id, restaurant_id, dish_id, date, order_count, 
 
 
 --
--- Data for Name: stop_check_analytics; Type: TABLE DATA; Schema: public; Owner: leonkul
+-- Data for Name: stop_check_analytics; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
 COPY public.stop_check_analytics (id, tariff_rule_id, restaurant_id, date, trigger_count, stop_reason, estimated_loss, created_at, updated_at) FROM stdin;
@@ -423,7 +423,7 @@ COPY public.stop_check_analytics (id, tariff_rule_id, restaurant_id, date, trigg
 
 
 --
--- Data for Name: tariff_calendars; Type: TABLE DATA; Schema: public; Owner: leonkul
+-- Data for Name: tariff_calendars; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
 COPY public.tariff_calendars (id, name, description, restaurant_id, weekend_days, fixed_holidays, floating_holidays, short_days, is_active, created_at, updated_at) FROM stdin;
@@ -438,42 +438,42 @@ SELECT pg_catalog.setval('public.booking_orders_id_seq', 1, false);
 
 
 --
--- Name: daily_branch_revenue_id_seq; Type: SEQUENCE SET; Schema: public; Owner: leonkul
+-- Name: daily_branch_revenue_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
 SELECT pg_catalog.setval('public.daily_branch_revenue_id_seq', 1, false);
 
 
 --
--- Name: employee_utilization_id_seq; Type: SEQUENCE SET; Schema: public; Owner: leonkul
+-- Name: employee_utilization_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
 SELECT pg_catalog.setval('public.employee_utilization_id_seq', 1, false);
 
 
 --
--- Name: pricing_rule_impact_id_seq; Type: SEQUENCE SET; Schema: public; Owner: leonkul
+-- Name: pricing_rule_impact_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
 SELECT pg_catalog.setval('public.pricing_rule_impact_id_seq', 1, false);
 
 
 --
--- Name: service_performance_id_seq; Type: SEQUENCE SET; Schema: public; Owner: leonkul
+-- Name: service_performance_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
 SELECT pg_catalog.setval('public.service_performance_id_seq', 1, false);
 
 
 --
--- Name: stop_check_analytics_id_seq; Type: SEQUENCE SET; Schema: public; Owner: leonkul
+-- Name: stop_check_analytics_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
 SELECT pg_catalog.setval('public.stop_check_analytics_id_seq', 1, false);
 
 
 --
--- Name: tariff_calendars_id_seq; Type: SEQUENCE SET; Schema: public; Owner: leonkul
+-- Name: tariff_calendars_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
 SELECT pg_catalog.setval('public.tariff_calendars_id_seq', 1, false);
@@ -488,7 +488,7 @@ ALTER TABLE ONLY public.booking_orders
 
 
 --
--- Name: daily_branch_revenue daily_branch_revenue_pkey; Type: CONSTRAINT; Schema: public; Owner: leonkul
+-- Name: daily_branch_revenue daily_branch_revenue_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.daily_branch_revenue
@@ -496,7 +496,7 @@ ALTER TABLE ONLY public.daily_branch_revenue
 
 
 --
--- Name: daily_branch_revenue daily_branch_revenue_restaurant_id_date_key; Type: CONSTRAINT; Schema: public; Owner: leonkul
+-- Name: daily_branch_revenue daily_branch_revenue_restaurant_id_date_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.daily_branch_revenue
@@ -504,7 +504,7 @@ ALTER TABLE ONLY public.daily_branch_revenue
 
 
 --
--- Name: employee_utilization employee_utilization_employee_id_restaurant_id_date_key; Type: CONSTRAINT; Schema: public; Owner: leonkul
+-- Name: employee_utilization employee_utilization_employee_id_restaurant_id_date_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.employee_utilization
@@ -512,7 +512,7 @@ ALTER TABLE ONLY public.employee_utilization
 
 
 --
--- Name: employee_utilization employee_utilization_pkey; Type: CONSTRAINT; Schema: public; Owner: leonkul
+-- Name: employee_utilization employee_utilization_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.employee_utilization
@@ -520,7 +520,7 @@ ALTER TABLE ONLY public.employee_utilization
 
 
 --
--- Name: loyalty_campaign_segments loyalty_campaign_segments_pkey; Type: CONSTRAINT; Schema: public; Owner: leonkul
+-- Name: loyalty_campaign_segments loyalty_campaign_segments_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.loyalty_campaign_segments
@@ -528,7 +528,7 @@ ALTER TABLE ONLY public.loyalty_campaign_segments
 
 
 --
--- Name: pricing_rule_impact pricing_rule_impact_pkey; Type: CONSTRAINT; Schema: public; Owner: leonkul
+-- Name: pricing_rule_impact pricing_rule_impact_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.pricing_rule_impact
@@ -536,7 +536,7 @@ ALTER TABLE ONLY public.pricing_rule_impact
 
 
 --
--- Name: pricing_rule_impact pricing_rule_impact_tariff_rule_id_restaurant_id_date_key; Type: CONSTRAINT; Schema: public; Owner: leonkul
+-- Name: pricing_rule_impact pricing_rule_impact_tariff_rule_id_restaurant_id_date_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.pricing_rule_impact
@@ -544,7 +544,7 @@ ALTER TABLE ONLY public.pricing_rule_impact
 
 
 --
--- Name: service_performance service_performance_pkey; Type: CONSTRAINT; Schema: public; Owner: leonkul
+-- Name: service_performance service_performance_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.service_performance
@@ -552,7 +552,7 @@ ALTER TABLE ONLY public.service_performance
 
 
 --
--- Name: service_performance service_performance_restaurant_id_dish_id_date_key; Type: CONSTRAINT; Schema: public; Owner: leonkul
+-- Name: service_performance service_performance_restaurant_id_dish_id_date_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.service_performance
@@ -560,7 +560,7 @@ ALTER TABLE ONLY public.service_performance
 
 
 --
--- Name: stop_check_analytics stop_check_analytics_pkey; Type: CONSTRAINT; Schema: public; Owner: leonkul
+-- Name: stop_check_analytics stop_check_analytics_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.stop_check_analytics
@@ -568,7 +568,7 @@ ALTER TABLE ONLY public.stop_check_analytics
 
 
 --
--- Name: tariff_calendars tariff_calendars_pkey; Type: CONSTRAINT; Schema: public; Owner: leonkul
+-- Name: tariff_calendars tariff_calendars_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.tariff_calendars
@@ -583,105 +583,105 @@ CREATE INDEX idx_booking_orders_branch ON public.booking_orders USING btree (bra
 
 
 --
--- Name: idx_daily_revenue_date; Type: INDEX; Schema: public; Owner: leonkul
+-- Name: idx_daily_revenue_date; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_daily_revenue_date ON public.daily_branch_revenue USING btree (date);
 
 
 --
--- Name: idx_daily_revenue_restaurant; Type: INDEX; Schema: public; Owner: leonkul
+-- Name: idx_daily_revenue_restaurant; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_daily_revenue_restaurant ON public.daily_branch_revenue USING btree (restaurant_id);
 
 
 --
--- Name: idx_emp_util_date; Type: INDEX; Schema: public; Owner: leonkul
+-- Name: idx_emp_util_date; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_emp_util_date ON public.employee_utilization USING btree (date);
 
 
 --
--- Name: idx_emp_util_employee; Type: INDEX; Schema: public; Owner: leonkul
+-- Name: idx_emp_util_employee; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_emp_util_employee ON public.employee_utilization USING btree (employee_id);
 
 
 --
--- Name: idx_emp_util_restaurant; Type: INDEX; Schema: public; Owner: leonkul
+-- Name: idx_emp_util_restaurant; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_emp_util_restaurant ON public.employee_utilization USING btree (restaurant_id);
 
 
 --
--- Name: idx_pricing_impact_date; Type: INDEX; Schema: public; Owner: leonkul
+-- Name: idx_pricing_impact_date; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_pricing_impact_date ON public.pricing_rule_impact USING btree (date);
 
 
 --
--- Name: idx_pricing_impact_restaurant; Type: INDEX; Schema: public; Owner: leonkul
+-- Name: idx_pricing_impact_restaurant; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_pricing_impact_restaurant ON public.pricing_rule_impact USING btree (restaurant_id);
 
 
 --
--- Name: idx_pricing_impact_rule; Type: INDEX; Schema: public; Owner: leonkul
+-- Name: idx_pricing_impact_rule; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_pricing_impact_rule ON public.pricing_rule_impact USING btree (tariff_rule_id);
 
 
 --
--- Name: idx_service_perf_date; Type: INDEX; Schema: public; Owner: leonkul
+-- Name: idx_service_perf_date; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_service_perf_date ON public.service_performance USING btree (date);
 
 
 --
--- Name: idx_service_perf_dish; Type: INDEX; Schema: public; Owner: leonkul
+-- Name: idx_service_perf_dish; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_service_perf_dish ON public.service_performance USING btree (dish_id);
 
 
 --
--- Name: idx_service_perf_restaurant; Type: INDEX; Schema: public; Owner: leonkul
+-- Name: idx_service_perf_restaurant; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_service_perf_restaurant ON public.service_performance USING btree (restaurant_id);
 
 
 --
--- Name: idx_stop_check_date; Type: INDEX; Schema: public; Owner: leonkul
+-- Name: idx_stop_check_date; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_stop_check_date ON public.stop_check_analytics USING btree (date);
 
 
 --
--- Name: idx_stop_check_restaurant; Type: INDEX; Schema: public; Owner: leonkul
+-- Name: idx_stop_check_restaurant; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_stop_check_restaurant ON public.stop_check_analytics USING btree (restaurant_id);
 
 
 --
--- Name: idx_stop_check_rule; Type: INDEX; Schema: public; Owner: leonkul
+-- Name: idx_stop_check_rule; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_stop_check_rule ON public.stop_check_analytics USING btree (tariff_rule_id);
 
 
 --
--- Name: idx_tariff_calendars_restaurant; Type: INDEX; Schema: public; Owner: leonkul
+-- Name: idx_tariff_calendars_restaurant; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_tariff_calendars_restaurant ON public.tariff_calendars USING btree (restaurant_id);
@@ -694,37 +694,37 @@ CREATE INDEX idx_tariff_calendars_restaurant ON public.tariff_calendars USING bt
 ALTER TABLE public.booking_orders ENABLE ROW LEVEL SECURITY;
 
 --
--- Name: daily_branch_revenue; Type: ROW SECURITY; Schema: public; Owner: leonkul
+-- Name: daily_branch_revenue; Type: ROW SECURITY; Schema: public; Owner: postgres
 --
 
 ALTER TABLE public.daily_branch_revenue ENABLE ROW LEVEL SECURITY;
 
 --
--- Name: employee_utilization; Type: ROW SECURITY; Schema: public; Owner: leonkul
+-- Name: employee_utilization; Type: ROW SECURITY; Schema: public; Owner: postgres
 --
 
 ALTER TABLE public.employee_utilization ENABLE ROW LEVEL SECURITY;
 
 --
--- Name: pricing_rule_impact; Type: ROW SECURITY; Schema: public; Owner: leonkul
+-- Name: pricing_rule_impact; Type: ROW SECURITY; Schema: public; Owner: postgres
 --
 
 ALTER TABLE public.pricing_rule_impact ENABLE ROW LEVEL SECURITY;
 
 --
--- Name: service_performance; Type: ROW SECURITY; Schema: public; Owner: leonkul
+-- Name: service_performance; Type: ROW SECURITY; Schema: public; Owner: postgres
 --
 
 ALTER TABLE public.service_performance ENABLE ROW LEVEL SECURITY;
 
 --
--- Name: stop_check_analytics; Type: ROW SECURITY; Schema: public; Owner: leonkul
+-- Name: stop_check_analytics; Type: ROW SECURITY; Schema: public; Owner: postgres
 --
 
 ALTER TABLE public.stop_check_analytics ENABLE ROW LEVEL SECURITY;
 
 --
--- Name: tariff_calendars; Type: ROW SECURITY; Schema: public; Owner: leonkul
+-- Name: tariff_calendars; Type: ROW SECURITY; Schema: public; Owner: postgres
 --
 
 ALTER TABLE public.tariff_calendars ENABLE ROW LEVEL SECURITY;
@@ -737,49 +737,49 @@ CREATE POLICY tenant_isolation_booking_orders ON public.booking_orders USING ((b
 
 
 --
--- Name: daily_branch_revenue tenant_isolation_daily_branch_revenue; Type: POLICY; Schema: public; Owner: leonkul
+-- Name: daily_branch_revenue tenant_isolation_daily_branch_revenue; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY tenant_isolation_daily_branch_revenue ON public.daily_branch_revenue USING ((restaurant_id = (NULLIF(current_setting('app.current_restaurant_id'::text, true), ''::text))::bigint)) WITH CHECK ((restaurant_id = (NULLIF(current_setting('app.current_restaurant_id'::text, true), ''::text))::bigint));
 
 
 --
--- Name: employee_utilization tenant_isolation_employee_utilization; Type: POLICY; Schema: public; Owner: leonkul
+-- Name: employee_utilization tenant_isolation_employee_utilization; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY tenant_isolation_employee_utilization ON public.employee_utilization USING ((restaurant_id = (NULLIF(current_setting('app.current_restaurant_id'::text, true), ''::text))::bigint)) WITH CHECK ((restaurant_id = (NULLIF(current_setting('app.current_restaurant_id'::text, true), ''::text))::bigint));
 
 
 --
--- Name: pricing_rule_impact tenant_isolation_pricing_rule_impact; Type: POLICY; Schema: public; Owner: leonkul
+-- Name: pricing_rule_impact tenant_isolation_pricing_rule_impact; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY tenant_isolation_pricing_rule_impact ON public.pricing_rule_impact USING ((restaurant_id = (NULLIF(current_setting('app.current_restaurant_id'::text, true), ''::text))::bigint)) WITH CHECK ((restaurant_id = (NULLIF(current_setting('app.current_restaurant_id'::text, true), ''::text))::bigint));
 
 
 --
--- Name: service_performance tenant_isolation_service_performance; Type: POLICY; Schema: public; Owner: leonkul
+-- Name: service_performance tenant_isolation_service_performance; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY tenant_isolation_service_performance ON public.service_performance USING ((restaurant_id = (NULLIF(current_setting('app.current_restaurant_id'::text, true), ''::text))::bigint)) WITH CHECK ((restaurant_id = (NULLIF(current_setting('app.current_restaurant_id'::text, true), ''::text))::bigint));
 
 
 --
--- Name: stop_check_analytics tenant_isolation_stop_check_analytics; Type: POLICY; Schema: public; Owner: leonkul
+-- Name: stop_check_analytics tenant_isolation_stop_check_analytics; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY tenant_isolation_stop_check_analytics ON public.stop_check_analytics USING ((restaurant_id = (NULLIF(current_setting('app.current_restaurant_id'::text, true), ''::text))::bigint)) WITH CHECK ((restaurant_id = (NULLIF(current_setting('app.current_restaurant_id'::text, true), ''::text))::bigint));
 
 
 --
--- Name: tariff_calendars tenant_isolation_tariff_calendars; Type: POLICY; Schema: public; Owner: leonkul
+-- Name: tariff_calendars tenant_isolation_tariff_calendars; Type: POLICY; Schema: public; Owner: postgres
 --
 
 CREATE POLICY tenant_isolation_tariff_calendars ON public.tariff_calendars USING ((restaurant_id = (NULLIF(current_setting('app.current_restaurant_id'::text, true), ''::text))::bigint)) WITH CHECK ((restaurant_id = (NULLIF(current_setting('app.current_restaurant_id'::text, true), ''::text))::bigint));
 
 
 --
--- Name: TABLE daily_branch_revenue; Type: ACL; Schema: public; Owner: leonkul
+-- Name: TABLE daily_branch_revenue; Type: ACL; Schema: public; Owner: postgres
 --
 
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.daily_branch_revenue TO app_tenant;
@@ -787,7 +787,7 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.daily_branch_revenue TO app_pl
 
 
 --
--- Name: TABLE employee_utilization; Type: ACL; Schema: public; Owner: leonkul
+-- Name: TABLE employee_utilization; Type: ACL; Schema: public; Owner: postgres
 --
 
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.employee_utilization TO app_tenant;
@@ -795,7 +795,7 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.employee_utilization TO app_pl
 
 
 --
--- Name: TABLE loyalty_campaign_segments; Type: ACL; Schema: public; Owner: leonkul
+-- Name: TABLE loyalty_campaign_segments; Type: ACL; Schema: public; Owner: postgres
 --
 
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.loyalty_campaign_segments TO app_tenant;
@@ -803,7 +803,7 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.loyalty_campaign_segments TO a
 
 
 --
--- Name: TABLE pricing_rule_impact; Type: ACL; Schema: public; Owner: leonkul
+-- Name: TABLE pricing_rule_impact; Type: ACL; Schema: public; Owner: postgres
 --
 
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.pricing_rule_impact TO app_tenant;
@@ -811,7 +811,7 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.pricing_rule_impact TO app_pla
 
 
 --
--- Name: TABLE service_performance; Type: ACL; Schema: public; Owner: leonkul
+-- Name: TABLE service_performance; Type: ACL; Schema: public; Owner: postgres
 --
 
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.service_performance TO app_tenant;
@@ -819,7 +819,7 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.service_performance TO app_pla
 
 
 --
--- Name: TABLE stop_check_analytics; Type: ACL; Schema: public; Owner: leonkul
+-- Name: TABLE stop_check_analytics; Type: ACL; Schema: public; Owner: postgres
 --
 
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.stop_check_analytics TO app_tenant;
@@ -827,7 +827,7 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.stop_check_analytics TO app_pl
 
 
 --
--- Name: TABLE tariff_calendars; Type: ACL; Schema: public; Owner: leonkul
+-- Name: TABLE tariff_calendars; Type: ACL; Schema: public; Owner: postgres
 --
 
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.tariff_calendars TO app_tenant;
