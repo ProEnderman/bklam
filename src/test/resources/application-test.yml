@@ -1,0 +1,73 @@
+spring:
+  # Do not run @Scheduled jobs during tests (BookingNotificationService, ShedLock, etc.)
+  # — avoids Hikari timeouts and connection refused when Testcontainers PG restarts or pool is busy.
+  task:
+    scheduling:
+      enabled: false
+
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    # BR / CI: keep logs readable (no DDL/DML flood in ./gradlew test or GitHub Actions)
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+  
+  flyway:
+    enabled: false
+
+# MultiDataSourceConfig: JPA uses app.datasource.tenant — must match test DB (CI has no localhost Postgres).
+# Tests that need real PostgreSQL (RLS, Flyway) override these via @DynamicPropertySource (e.g. RlsIsolationIT).
+app:
+  datasource:
+    tenant:
+      jdbc-url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+      username: sa
+      password: ""
+      driver-class-name: org.h2.Driver
+    platform:
+      jdbc-url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+      username: sa
+      password: ""
+      driver-class-name: org.h2.Driver
+
+logging:
+  level:
+    root: WARN
+    com.restaurant: DEBUG
+
+# --- Test-safe secrets (test scope only) ---
+# These satisfy EarlySecuritySecretsEnvironmentPostProcessor validation
+# without weakening production fail-fast guarantees.
+
+jwt:
+  secret: "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
+
+qr:
+  signing:
+    secret: "ffeeddccbbaa99887766554433221100ffeeddccbbaa99887766554433221100"
+
+forecast:
+  internal_jwt:
+    secret: "YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXoxMjM0NTY3ODkwYWJjZGVmZ2hpamts"
+  service:
+    health:
+      enabled: false
+
+security:
+  allow-insecure-dev-secrets: true
+
+telegram:
+  webhook:
+    enabled: false
+  payment:
+    service:
+      health:
+        enabled: false

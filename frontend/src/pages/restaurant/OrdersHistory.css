@@ -1,0 +1,152 @@
+.orders-history-page {
+  padding: 20px;
+}
+
+.filters {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-group label {
+  font-size: 14px;
+  color: #666;
+}
+
+.filter-select,
+.filter-input {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.status-badge {
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-open {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.status-closed {
+  background: #d4edda;
+  color: #155724;
+}
+
+.status-canceled {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.paid-badge {
+  font-size: 12px;
+  font-weight: 600;
+  color: #059669;
+  padding: 4px 10px;
+  background: #dcfce7;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+.unpaid-badge {
+  font-size: 12px;
+  font-weight: 500;
+  color: #9ca3af;
+  padding: 4px 10px;
+  background: #f3f4f6;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+.btn-small.btn-success {
+  background: #059669;
+  color: white;
+  border: none;
+}
+
+.btn-small.btn-success:hover {
+  background: #047857;
+}
+
+.btn-small.btn-warning {
+  background: #f59e0b;
+  color: white;
+  border: none;
+}
+
+.btn-small.btn-warning:hover {
+  background: #d97706;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  min-width: 360px;
+  max-width: 460px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.unpaid-reason-modal h3 {
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  color: #111;
+}
+
+.unpaid-reason-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.radio-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #333;
+  cursor: pointer;
+}
+
+.radio-label input[type="radio"] {
+  accent-color: #667eea;
+}
+
+.unpaid-reason-options .filter-input {
+  margin-top: 4px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}

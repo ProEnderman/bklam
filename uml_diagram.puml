@@ -1,0 +1,209 @@
+@startuml Restaurant Management System
+!theme plain
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+
+package "Core" {
+  class Restaurant {
+    -id: Long
+    -name: String
+    -createdAt: LocalDateTime
+  }
+  class User {
+    -id: Long
+    -createdAt: LocalDateTime
+  }
+}
+
+package "Orders" {
+  class Order {
+    -id: Long
+    -name: String
+    -createdAt: LocalDateTime
+  }
+  class OrderItem {
+    -id: Long
+  }
+}
+
+package "Menu" {
+  class Dish {
+    -id: Long
+    -name: String
+    -createdAt: LocalDateTime
+  }
+  class DishCategory {
+    -id: Long
+    -name: String
+    -createdAt: LocalDateTime
+  }
+  class Ingredient {
+    -id: Long
+    -name: String
+    -createdAt: LocalDateTime
+  }
+  class DishIngredient {
+    -id: Long
+  }
+}
+
+package "Hall Map" {
+  class HallMap {
+    -id: Long
+    -createdAt: LocalDateTime
+  }
+  class HallZone {
+    -id: Long
+    -name: String
+    -createdAt: LocalDateTime
+  }
+  class HallAsset {
+    -id: Long
+    -name: String
+    -createdAt: LocalDateTime
+  }
+  class HallTable {
+    -id: Long
+    -createdAt: LocalDateTime
+  }
+  class HallPlacedItem {
+    -id: Long
+    -createdAt: LocalDateTime
+  }
+}
+
+package "Bookings" {
+  class Booking {
+    -id: Long
+    -createdAt: LocalDateTime
+  }
+  class Activity {
+    -id: Long
+    -name: String
+    -createdAt: LocalDateTime
+  }
+  class Resource {
+    -id: Long
+    -name: String
+    -createdAt: LocalDateTime
+  }
+}
+
+package "Shifts" {
+  class Shift {
+    -id: Long
+    -createdAt: LocalDateTime
+  }
+  class ShiftTemplate {
+    -id: Long
+    -name: String
+    -createdAt: LocalDateTime
+  }
+  class ShiftSwapRequest {
+    -id: Long
+    -createdAt: LocalDateTime
+  }
+}
+
+package "Pricing" {
+  class TariffPlan {
+    -id: Long
+    -name: String
+    -createdAt: LocalDateTime
+  }
+  class TariffRule {
+    -id: Long
+    -createdAt: LocalDateTime
+  }
+  class TariffSpecialDateModifier {
+    -id: Long
+    -createdAt: LocalDateTime
+  }
+  class PricingRun {
+    -id: Long
+    -createdAt: LocalDateTime
+  }
+  class PricingBreakdown {
+    -id: Long
+    -createdAt: LocalDateTime
+  }
+}
+
+package "Stock" {
+  class StockMovement {
+    -id: Long
+    -createdAt: LocalDateTime
+  }
+}
+
+package "System" {
+  class Calendar {
+    -id: Long
+    -name: String
+    -createdAt: LocalDateTime
+  }
+  class VerificationCode {
+    -id: Long
+    -createdAt: LocalDateTime
+  }
+  class RefreshToken {
+    -id: Long
+    -createdAt: LocalDateTime
+  }
+  class ActivityLog {
+    -id: Long
+    -createdAt: LocalDateTime
+  }
+}
+
+
+' Relationships
+Restaurant ||--o{ TariffPlan : "restaurant"
+Calendar ||--o{ TariffPlan : "calendar"
+HallMap ||--o{ HallPlacedItem : "hallMap"
+HallAsset ||--o{ HallPlacedItem : "asset"
+HallTable ||--o{ HallPlacedItem : "table"
+Shift ||--o{ ShiftSwapRequest : "fromShift"
+Shift ||--o{ ShiftSwapRequest : "toShift"
+User ||--o{ ShiftSwapRequest : "requestedBy"
+User ||--o{ ShiftSwapRequest : "requestedTo"
+Restaurant ||--o{ Order : "restaurant"
+HallTable ||--o{ Order : "table"
+User ||--o{ RefreshToken : "user"
+TariffPlan ||--o{ Activity : "tariffPlan"
+Order ||--o{ PricingRun : "order"
+Restaurant ||--o{ PricingRun : "restaurant"
+Order ||--o{ OrderItem : "order"
+Dish ||--o{ OrderItem : "dish"
+Restaurant ||--o{ ShiftTemplate : "restaurant"
+TariffPlan ||--o{ TariffSpecialDateModifier : "tariffPlan"
+TariffPlan ||--o{ TariffRule : "tariffPlan"
+Restaurant ||--o{ Calendar : "branch"
+Restaurant ||--o{ Booking : "branch"
+Activity ||--o{ Booking : "activity"
+Resource ||--o{ Booking : "resource"
+User ||--o{ Booking : "customer"
+PricingRun ||--o{ Booking : "pricingRun"
+Restaurant ||--o{ Ingredient : "restaurant"
+Restaurant ||--o{ Resource : "branch"
+Activity ||--o{ Resource : "activity"
+Restaurant ||--o{ User : "restaurant"
+Restaurant ||--o{ HallAsset : "restaurant"
+User ||--o{ VerificationCode : "user"
+User ||--o{ Shift : "employee"
+Restaurant ||--o{ Shift : "restaurant"
+ShiftTemplate ||--o{ Shift : "template"
+ShiftSwapRequest ||--o{ Shift : "swapRequest"
+Dish ||--o{ DishIngredient : "dish"
+Ingredient ||--o{ DishIngredient : "ingredient"
+Restaurant ||--o{ HallTable : "restaurant"
+Restaurant ||--o{ HallMap : "restaurant"
+Restaurant ||--o{ DishCategory : "restaurant"
+Restaurant ||--o{ Dish : "restaurant"
+DishCategory ||--o{ Dish : "category"
+HallMap ||--o{ HallZone : "hallMap"
+Ingredient ||--o{ StockMovement : "ingredient"
+PricingRun ||--o{ PricingBreakdown : "pricingRun"
+TariffRule ||--o{ PricingBreakdown : "tariffRule"
+
+@enduml

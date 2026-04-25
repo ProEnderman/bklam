@@ -1,0 +1,355 @@
+.activity-log-page {
+  padding: 20px;
+}
+
+.page-header {
+  margin-bottom: 20px;
+}
+
+.page-header h1 {
+  margin: 0 0 5px 0;
+  font-size: 24px;
+}
+
+.page-header p {
+  margin: 0;
+  color: #666;
+  font-size: 14px;
+}
+
+/* Filters Panel */
+.filters-panel {
+  margin-bottom: 20px;
+  padding: 16px;
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+}
+
+.filter-row {
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 180px;
+}
+
+.filter-group label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.filter-group select {
+  padding: 8px 12px;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  font-size: 14px;
+  background: white;
+  color: #333;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.filter-group input[type='text'],
+.filter-group input[type='date'] {
+  padding: 8px 12px;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  font-size: 14px;
+  background: white;
+  color: #333;
+}
+
+.filter-group input[type='text']:focus,
+.filter-group input[type='date']:focus {
+  outline: none;
+  border-color: #4a90d9;
+  box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.15);
+}
+
+.preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.preset-chip {
+  border: 1px solid #d0d7de;
+  background: #fff;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.preset-chip.active {
+  border-color: #2563eb;
+  color: #1e40af;
+  background: #eff6ff;
+}
+
+.checkbox-group {
+  min-width: 240px;
+}
+
+.inline-check {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+  color: #334155;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+}
+
+.filter-group select:hover {
+  border-color: #999;
+}
+
+.filter-group select:focus {
+  outline: none;
+  border-color: #4a90d9;
+  box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.15);
+}
+
+.filter-actions {
+  min-width: auto;
+}
+
+.reset-filters-btn {
+  padding: 8px 16px;
+  border: 1px solid #dc3545;
+  border-radius: 6px;
+  background: transparent;
+  color: #dc3545;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  white-space: nowrap;
+}
+
+.reset-filters-btn:hover {
+  background: #dc3545;
+  color: white;
+}
+
+.action-row {
+  display: flex;
+  gap: 8px;
+}
+
+.reset-filters-btn.secondary {
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
+.reset-filters-btn.secondary:hover {
+  background: #2563eb;
+  color: #fff;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 12px 0 16px;
+}
+
+.summary-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+}
+
+/* Description */
+.description {
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Action type badges */
+.action-type {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.action-create {
+  background: #d4edda;
+  color: #155724;
+}
+
+.action-update {
+  background: #d1ecf1;
+  color: #0c5460;
+}
+
+.action-delete {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.action-login {
+  background: #e8daef;
+  color: #4a235a;
+}
+
+.action-logout {
+  background: #fdebd0;
+  color: #784212;
+}
+
+.action-register {
+  background: #d5f5e3;
+  color: #186a3b;
+}
+
+.action-cancel {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.action-complete {
+  background: #d4edda;
+  color: #155724;
+}
+
+.action-publish {
+  background: #d6eaf8;
+  color: #1b4f72;
+}
+
+.action-lock {
+  background: #fdebd0;
+  color: #784212;
+}
+
+.action-accept_swap {
+  background: #d5f5e3;
+  color: #186a3b;
+}
+
+.action-reject_swap {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.action-excel_upload {
+  background: #d6eaf8;
+  color: #1b4f72;
+}
+
+.action-activate {
+  background: #d5f5e3;
+  color: #186a3b;
+}
+
+.action-deactivate {
+  background: #fdebd0;
+  color: #784212;
+}
+
+.action-add_item {
+  background: #d4edda;
+  color: #155724;
+}
+
+.action-update_item {
+  background: #d1ecf1;
+  color: #0c5460;
+}
+
+.action-remove_item {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.action-update_recipe {
+  background: #d1ecf1;
+  color: #0c5460;
+}
+
+.action-update_role {
+  background: #e8daef;
+  color: #4a235a;
+}
+
+.action-close_order {
+  background: #d5f5e3;
+  color: #186a3b;
+}
+
+.action-stock_in {
+  background: #d4edda;
+  color: #155724;
+}
+
+.action-stock_out {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.action-mark_paid {
+  background: #d5f5e3;
+  color: #186a3b;
+}
+
+.action-mark_unpaid {
+  background: #fde2e2;
+  color: #991b1b;
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.pagination button {
+  padding: 8px 16px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.pagination button:hover:not(:disabled) {
+  background: #f0f0f0;
+}
+
+.pagination button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination span {
+  font-size: 14px;
+  color: #666;
+}
+
+.loading,
+.error {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+}

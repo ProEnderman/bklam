@@ -1,0 +1,24 @@
+{
+  "metric": "bookings",
+  "year": 2026,
+  "month": 9,
+  "period_start": "2026-09-01",
+  "period_end": "2026-09-30",
+  "status": "full",
+  "covered_days": 30,
+  "total_days": 30,
+  "coverage_ratio": 1.0,
+  "predicted_total": 1011.0,
+  "lower_total": 940.47,
+  "upper_total": 1115.32,
+  "model_family_used": "sarima",
+  "last_updated_timestamp": "2026-02-21T17:12:55.306325",
+  "source_forecast_snapshot_id": null,
+  "notes": {
+    "aggregation": "calendar_month",
+    "value_type": "sum",
+    "actual_days": 1,
+    "forecast_days": 29,
+    "missing_days": 0
+  }
+}

@@ -1,0 +1,10 @@
+# Python & test caches (root .gitignore applies from repo root; this helps isolated work in forecasting/)
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+*.egg-info/
+.eggs/

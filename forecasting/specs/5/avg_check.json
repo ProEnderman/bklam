@@ -1,0 +1,13 @@
+{
+  "model_name": "ma7",
+  "model_family": "baseline",
+  "params": {
+    "window": 7
+  },
+  "transform_name": "identity",
+  "mean_mape": null,
+  "trained_at": "2026-03-09T11:02:05.748805",
+  "warnings": [
+    "insufficient_data"
+  ]
+}

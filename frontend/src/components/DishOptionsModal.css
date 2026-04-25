@@ -1,0 +1,115 @@
+.dom-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.45);
+  display: flex; align-items: flex-end; justify-content: center;
+  z-index: 1000;
+}
+.dom-modal {
+  background: #fff; border-radius: 16px 16px 0 0;
+  width: 100%; max-width: 480px; max-height: 90vh;
+  display: flex; flex-direction: column;
+  animation: dom-slide .2s ease;
+}
+@keyframes dom-slide { from { transform: translateY(30%); opacity: 0 } }
+
+.dom-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 16px 20px 8px; border-bottom: 1px solid #eee;
+  gap: 12px;
+}
+.dom-header h3 { margin: 0; font-size: 18px; flex: 1; min-width: 0; }
+.dom-header-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.dom-recipe-btn {
+  padding: 6px 12px;
+  font-size: 13px;
+  border: 1px solid #c4b5fd;
+  border-radius: 8px;
+  background: #f5f3ff;
+  color: #5b21b6;
+  cursor: pointer;
+  font-weight: 500;
+}
+.dom-recipe-btn:hover { background: #ede9fe; }
+.dom-close { background: none; border: none; font-size: 24px; cursor: pointer; color: #888; line-height: 1; }
+
+.dom-body { flex: 1; overflow-y: auto; padding: 12px 20px; }
+
+.dom-group { margin-bottom: 18px; }
+.dom-group-header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+.dom-group-title { font-weight: 600; font-size: 15px; }
+.dom-hint { font-size: 12px; color: #888; }
+
+/* chips (SINGLE_*) */
+.dom-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.dom-chip {
+  padding: 6px 14px; border-radius: 20px;
+  border: 1.5px solid #ddd; background: #fff;
+  font-size: 14px; cursor: pointer; transition: .15s;
+}
+.dom-chip.active { background: #4f46e5; color: #fff; border-color: #4f46e5; }
+.dom-chip:hover:not(.active) { border-color: #aaa; }
+
+/* checkboxes */
+.dom-check-list { display: flex; flex-direction: column; gap: 6px; }
+.dom-check-item {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 14px; cursor: pointer;
+}
+.dom-check-item.disabled { opacity: .45; pointer-events: none; }
+.dom-check-item input { width: 18px; height: 18px; accent-color: #4f46e5; }
+.dom-delta { margin-left: auto; color: #4f46e5; font-size: 13px; font-weight: 500; }
+
+/* cards with qty (MULTI_QTY_TOTAL_LIMIT / HALF_AND_HALF) */
+.dom-cards { display: flex; flex-direction: column; gap: 8px; }
+.dom-cards-counter {
+  text-align: right; font-size: 13px; color: #666; font-weight: 500;
+}
+.dom-card {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 12px; border: 1px solid #eee; border-radius: 10px;
+}
+.dom-card-info { display: flex; align-items: baseline; gap: 6px; }
+.dom-card-title { font-size: 14px; }
+.dom-card-stepper { display: flex; align-items: center; gap: 8px; }
+.dom-card-stepper button {
+  width: 28px; height: 28px; border-radius: 50%;
+  border: 1.5px solid #ddd; background: #fff; font-size: 16px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.dom-card-stepper button:disabled { opacity: .3; cursor: default; }
+.dom-card-stepper span { min-width: 20px; text-align: center; font-weight: 600; }
+
+/* range stepper */
+.dom-stepper-row {
+  display: flex; align-items: center; gap: 12px;
+}
+.dom-stepper-row button {
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 1.5px solid #ddd; background: #fff; font-size: 18px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.dom-stepper-row button:disabled { opacity: .3; cursor: default; }
+.dom-stepper-val { font-size: 20px; font-weight: 700; min-width: 28px; text-align: center; }
+.dom-stepper-price { font-size: 14px; color: #4f46e5; font-weight: 500; }
+
+/* footer */
+.dom-footer {
+  padding: 12px 20px 16px; border-top: 1px solid #eee;
+  display: flex; flex-direction: column; gap: 10px; align-items: center;
+}
+.dom-qty-row { display: flex; align-items: center; gap: 12px; }
+.dom-qty-btn {
+  width: 32px; height: 32px; border-radius: 50%;
+  border: 1.5px solid #ddd; background: #fff; font-size: 18px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.dom-qty-val { font-size: 18px; font-weight: 700; min-width: 24px; text-align: center; }
+.dom-price { font-size: 20px; font-weight: 700; }
+.dom-errors { font-size: 12px; color: #ef4444; text-align: center; }
+.dom-add-btn {
+  width: 100%; padding: 12px; border: none; border-radius: 10px;
+  background: #4f46e5; color: #fff; font-size: 16px; font-weight: 600;
+  cursor: pointer; transition: .15s;
+}
+.dom-add-btn:disabled { opacity: .4; cursor: default; }
+.dom-add-btn:not(:disabled):hover { background: #4338ca; }

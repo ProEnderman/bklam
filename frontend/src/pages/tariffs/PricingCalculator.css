@@ -1,0 +1,146 @@
+.pricing-calculator-page {
+  padding: 20px;
+}
+
+.calculator-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.calculator-input,
+.calculator-result {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.calculator-input h2,
+.calculator-result h2 {
+  margin-top: 0;
+  font-size: 18px;
+  border-bottom: 2px solid #f0f0f0;
+  padding-bottom: 10px;
+  margin-bottom: 20px;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-group label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-weight: 500;
+}
+
+.form-group input {
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.status-badge {
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-weight: 500;
+  margin-bottom: 15px;
+}
+
+.status-badge.ok {
+  background: #d4edda;
+  color: #155724;
+}
+
+.status-badge.stop {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.status-badge.error {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.stop-reason {
+  padding: 10px;
+  background: #fff3cd;
+  border-left: 4px solid #ffc107;
+  margin-bottom: 15px;
+}
+
+.result-summary {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+
+.summary-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.summary-item.modifier {
+  color: #667eea;
+}
+
+.summary-item.modifier .positive {
+  color: #667eea;
+}
+
+.summary-item.modifier .negative {
+  color: #dc3545;
+}
+
+.summary-item.discount {
+  color: #dc3545;
+}
+
+.summary-item.total {
+  font-weight: bold;
+  font-size: 18px;
+  border-top: 2px solid #ddd;
+  padding-top: 8px;
+  margin-top: 8px;
+}
+
+.breakdown {
+  margin-top: 20px;
+}
+
+.breakdown h3 {
+  font-size: 16px;
+  margin-bottom: 10px;
+}
+
+.breakdown table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.breakdown th,
+.breakdown td {
+  padding: 8px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+}
+
+.breakdown th {
+  background: #f8f9fa;
+  font-weight: 500;
+}
+
+.applied-rules {
+  margin-top: 15px;
+  padding: 10px;
+  background: #e7f3ff;
+  border-radius: 4px;
+}
+
+
+

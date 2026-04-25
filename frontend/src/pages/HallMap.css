@@ -1,0 +1,561 @@
+/* Глобальная блокировка зума страницы */
+html, body {
+  touch-action: pan-x pan-y;
+  -ms-touch-action: pan-x pan-y;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+.hall-page {
+  padding: 20px;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  /* Не даём скроллу «пробиваться» до окна браузера и вызывать жест «назад/вперёд» */
+  overscroll-behavior: contain;
+  /* Блокируем зум страницы */
+  touch-action: pan-x pan-y;
+  -ms-touch-action: pan-x pan-y;
+}
+
+.hall-page {
+  padding: 20px;
+}
+
+.hall-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.hall-topbar-left {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hall-topbar-right {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.hall-mode-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.hall-mode-tabs button {
+  padding: 8px 10px;
+  border: 1px solid #ddd;
+  background: #fff;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.hall-mode-tabs button.active {
+  border-color: #4f46e5;
+  background: #eef2ff;
+}
+
+.hall-hint {
+  font-size: 12px;
+  color: #666;
+}
+
+.hall-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hall-filter select {
+  padding: 6px 8px;
+}
+
+.hall-content {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 16px;
+}
+
+.hall-sidebar {
+  border: 1px solid #eee;
+  border-radius: 12px;
+  padding: 12px;
+  background: #fff;
+}
+
+.hall-sidebar-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hall-sidebar-title {
+  font-weight: 600;
+  color: #333;
+}
+
+.hall-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.hall-row input,
+.hall-row select {
+  padding: 6px 8px;
+  width: 160px;
+}
+
+.hall-zone-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hall-zone-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid #eee;
+  border-radius: 10px;
+  padding: 8px;
+}
+
+.hall-zone-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+.hall-canvas-wrap {
+  overflow: hidden;
+  border: 1px solid #eee;
+  border-radius: 12px;
+  background: #f5f5f5; /* Серый фон вместо белого для лучшей видимости границ */
+  position: relative;
+  overscroll-behavior: contain;
+  /* Фиксированный размер viewport - карта видна только в этом окне */
+  width: 100%;
+  height: 600px;
+  min-height: 400px;
+  max-height: calc(100vh - 250px); /* Оставляем место для topbar и других элементов */
+  /* Предотвращаем зум страницы при взаимодействии с картой */
+  touch-action: pan-x pan-y;
+}
+
+.hall-canvas {
+  position: relative;
+  /* Отключаем стандартные жесты браузера для pinch-to-zoom страницы */
+  touch-action: none;
+  /* Предотвращаем зум страницы через CSS */
+  -ms-touch-action: none;
+  -webkit-touch-callout: none;
+}
+
+.hall-grid {
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(to right, rgba(0, 0, 0, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.06) 1px, transparent 1px);
+  pointer-events: none;
+}
+
+.hall-zone-rect {
+  position: absolute;
+  border: 2px solid;
+  border-radius: 6px;
+  box-sizing: border-box;
+  pointer-events: none; /* do not block clicks for placing objects */
+  transition: all 0.2s;
+}
+
+.hall-zone-label {
+  position: absolute;
+  top: -24px;
+  left: 0;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: #dc2626;
+  color: #fff;
+  white-space: nowrap;
+  z-index: 1000;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.hall-zone-hover {
+  border-width: 3px !important;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.3);
+}
+
+.hall-zone-cell {
+  position: absolute;
+  background: rgba(220, 38, 38, 0.18);
+  outline: 1px solid rgba(220, 38, 38, 0.35);
+  pointer-events: none;
+}
+
+.hall-zone-draft {
+  border-color: #dc2626;
+  background: rgba(220, 38, 38, 0.1);
+  border-style: dashed;
+  pointer-events: none;
+}
+
+.hall-item {
+  position: absolute;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.hall-item-sprite {
+  position: absolute;
+  background-repeat: no-repeat;
+  background-position: center;
+  /* Всегда заполняем хитбокс целиком (как просили), даже если PNG не совпадает по пропорциям */
+  background-size: 100% 100%;
+  transform-origin: center center;
+  pointer-events: none;
+}
+
+.hall-item-table {
+  border: 2px solid rgba(34, 197, 94, 0.6);
+  background: rgba(34, 197, 94, 0.15);
+  box-sizing: border-box;
+}
+
+.hall-item-decor {
+  outline: none;
+  background: #7b4b2a; /* коричневый квадрат для стен/декора */
+}
+
+.hall-item-selected {
+  box-shadow: 0 0 0 2px #facc15;
+}
+
+.hall-item-drag-preview {
+  border: 2px dashed #3b82f6 !important;
+  background: rgba(59, 130, 246, 0.2) !important;
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.5);
+}
+
+.hall-item-drag-preview.hall-item-table {
+  border-color: #22c55e !important;
+  background: rgba(34, 197, 94, 0.25) !important;
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.5);
+}
+
+.hall-item-in-polygon {
+  box-shadow: 0 0 0 3px #0ea5e9, 0 0 12px rgba(14, 165, 233, 0.5);
+  animation: polygon-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes polygon-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 3px #0ea5e9, 0 0 12px rgba(14, 165, 233, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 3px #0ea5e9, 0 0 20px rgba(14, 165, 233, 0.8);
+  }
+}
+
+.hall-item-img {
+  width: 100%;
+  height: 100%;
+  /* Полностью заполняем хитбокс, растягивая изображение при необходимости */
+  object-fit: fill;
+  image-rendering: pixelated;
+}
+
+.hall-item-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: #111;
+}
+
+.hall-item-title {
+  font-weight: 700;
+}
+
+.hall-eraser {
+  position: absolute;
+  background: #ffffff;
+  border: 2px solid #3b82f6; /* синяя рамка */
+  box-sizing: border-box;
+  pointer-events: none;
+  opacity: 0.9;
+}
+
+.hall-table-btn {
+  cursor: pointer;
+  border: none;
+}
+
+/* Нижняя панель со спрайтами (сохраняется при загрузке) */
+.hall-sprite-palette {
+  grid-column: 1 / -1;
+  border: 1px solid #eee;
+  border-radius: 12px;
+  padding: 12px;
+  background: #fff;
+  margin-top: 16px;
+}
+
+.hall-sprite-palette-title {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+.hall-sprite-palette-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.hall-sprite-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: #fff;
+  min-width: 80px;
+}
+
+.hall-sprite-item:hover {
+  border-color: #4f46e5;
+  background: #f5f5ff;
+}
+
+.hall-sprite-item.selected {
+  border-color: #4f46e5;
+  background: #eef2ff;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+}
+
+.hall-sprite-preview {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  border: 1px solid #eee;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.hall-sprite-fallback {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: #f5f5f5;
+  font-size: 10px;
+}
+
+.hall-sprite-fallback-text {
+  font-weight: 600;
+  color: #333;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.hall-sprite-fallback-size {
+  font-size: 9px;
+  color: #666;
+  margin-top: 2px;
+}
+
+.hall-sprite-label {
+  font-size: 11px;
+  color: #555;
+  text-align: center;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* При рисовании полигона отключаем клики на всех элементах */
+.hall-canvas.drawing-polygon .hall-item {
+  pointer-events: none !important;
+}
+
+/* Индикатор заказа на столе */
+.hall-table-has-order {
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.6), 0 0 12px rgba(34, 197, 94, 0.4);
+}
+
+.hall-table-order-indicator {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 12px;
+  height: 12px;
+  background: #22c55e;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.2); opacity: 0.8; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Tooltip с заказом */
+.hall-order-tooltip {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.15), 0 2px 8px rgba(0,0,0,0.1);
+  padding: 12px;
+  min-width: 220px;
+  max-width: 300px;
+  pointer-events: none;
+  animation: tooltipFadeIn 0.15s ease-out;
+}
+
+@keyframes tooltipFadeIn {
+  from { opacity: 0; transform: translateX(-5px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.hall-order-tooltip-header {
+  font-weight: 600;
+  font-size: 14px;
+  color: #1f2937;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 8px;
+}
+
+.hall-order-tooltip-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.hall-order-tooltip-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hall-order-tooltip-img {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: #fff;
+}
+
+.hall-order-tooltip-img-placeholder {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.hall-order-tooltip-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.hall-order-tooltip-name {
+  font-size: 13px;
+  color: #374151;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hall-order-tooltip-qty {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.hall-order-tooltip-total {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #e5e7eb;
+  font-weight: 600;
+  font-size: 14px;
+  color: #059669;
+  text-align: right;
+}
+
+/* Маска зоны */
+.hall-zone-mask {
+  transition: opacity 0.2s ease;
+}
+
+/* Видимые клетки зоны */
+.hall-zone-visible-cell {
+  box-sizing: border-box;
+}
+
+/* Элементы над маской */
+.hall-item-table.hall-table-btn {
+  z-index: 10 !important;
+}
+
+.hall-item-decor {
+  z-index: 7 !important;
+}
+
+/* Название выбранной зоны */
+.hall-selected-zone-label {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.95);
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  color: #1f2937;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  z-index: 100;
+  pointer-events: none;
+}
+

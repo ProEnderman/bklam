@@ -1,0 +1,200 @@
+.table-reservations-page {
+  padding: 20px;
+}
+
+.table-reservations-page .header-actions {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+.table-reservations-page .header-actions label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 14px;
+}
+
+.table-reservations-page .header-actions select {
+  padding: 6px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.reservation-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.reservation-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.reservation-form select {
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.reservation-form .form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+
+.reservation-form .form-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+/* Table multi-selector */
+.table-selector {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 12px;
+  background: #fafafa;
+}
+
+.table-selector-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.table-selector-label {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.capacity-badge {
+  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.capacity-badge.ok {
+  background: #d4edda;
+  color: #155724;
+}
+
+.capacity-badge.warn {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.table-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.table-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 13px;
+}
+
+.table-chip:hover {
+  border-color: #aaa;
+  background: #f5f5f5;
+}
+
+.table-chip.selected {
+  border-color: #2196f3;
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.chip-label {
+  font-weight: 600;
+}
+
+.chip-capacity {
+  color: #888;
+  font-size: 12px;
+}
+
+.table-chip.selected .chip-capacity {
+  color: #64b5f6;
+}
+
+.chip-check {
+  font-size: 14px;
+  font-weight: bold;
+  color: #2196f3;
+}
+
+.table-selector-hint {
+  margin: 8px 0 0 0;
+  font-size: 13px;
+  color: #999;
+  font-style: italic;
+}
+
+/* Status badges */
+.reservation-status {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.status-confirmed {
+  background: #d4edda;
+  color: #155724;
+}
+
+.status-cancelled {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.status-completed {
+  background: #cce5ff;
+  color: #004085;
+}
+
+.status-noshow {
+  background: #fff3cd;
+  color: #856404;
+}
+
+/* Action buttons */
+.action-buttons {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.btn-small {
+  padding: 4px 10px;
+  font-size: 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-success {
+  background: #28a745;
+  color: white;
+}
+
+.btn-success:hover {
+  background: #218838;
+}

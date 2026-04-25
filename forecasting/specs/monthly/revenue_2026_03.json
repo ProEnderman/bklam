@@ -1,0 +1,20 @@
+{
+  "metric": "revenue",
+  "year": 2026,
+  "month": 3,
+  "period_start": "2026-03-01",
+  "period_end": "2026-03-31",
+  "status": "no_data",
+  "covered_days": 0,
+  "total_days": 31,
+  "coverage_ratio": 0.0,
+  "predicted_total": 0.0,
+  "lower_total": null,
+  "upper_total": null,
+  "model_family_used": "sarima",
+  "last_updated_timestamp": "2026-02-21T15:54:15.847115",
+  "source_forecast_snapshot_id": null,
+  "notes": {
+    "aggregation": "calendar_month"
+  }
+}

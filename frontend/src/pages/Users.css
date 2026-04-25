@@ -1,0 +1,133 @@
+.permissions-section {
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
+.permissions-container {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 15px;
+  background: #f9f9f9;
+}
+
+.permission-category {
+  margin-bottom: 20px;
+}
+
+.permission-category:last-child {
+  margin-bottom: 0;
+}
+
+.permission-category-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 10px 0;
+  color: #333;
+  padding-bottom: 5px;
+  border-bottom: 1px solid #ddd;
+}
+
+.permission-checkboxes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.permission-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.permission-checkbox:hover {
+  background-color: #f0f0f0;
+}
+
+.permission-checkbox input[type="checkbox"] {
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+}
+
+.permission-checkbox span {
+  font-size: 14px;
+  color: #333;
+}
+
+.users-page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.users-header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.users-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #ddd;
+}
+
+.users-tabs button {
+  padding: 10px 16px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  color: #555;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.users-tabs button:hover {
+  color: #333;
+}
+
+.users-tabs button.active {
+  color: #667eea;
+  font-weight: 600;
+  border-bottom-color: #667eea;
+}
+
+.users-template-select-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.users-template-select-label select {
+  padding: 8px 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  max-width: 100%;
+}
+
+.users-hint {
+  font-size: 12px;
+  color: #666;
+  line-height: 1.45;
+  margin: 0 0 12px;
+}
+
+.users-template-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+

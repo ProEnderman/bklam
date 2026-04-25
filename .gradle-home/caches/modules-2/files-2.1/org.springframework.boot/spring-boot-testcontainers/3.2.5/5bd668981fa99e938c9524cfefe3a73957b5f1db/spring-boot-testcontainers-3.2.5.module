@@ -1,0 +1,188 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "org.springframework.boot",
+    "module": "spring-boot-testcontainers",
+    "version": "3.2.5",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "7.6.4"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 17,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api"
+      },
+      "dependencies": [
+        {
+          "group": "org.springframework.boot",
+          "module": "spring-boot-autoconfigure",
+          "version": {
+            "requires": "3.2.5"
+          }
+        },
+        {
+          "group": "org.testcontainers",
+          "module": "testcontainers",
+          "version": {
+            "requires": "1.19.7"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "spring-boot-testcontainers-3.2.5.jar",
+          "url": "spring-boot-testcontainers-3.2.5.jar",
+          "size": 111742,
+          "sha512": "abf7d83f222d255cf1cc05674a351ee138a63dda29617ee96175e270a4c47852ca1060bd1761be86277b524cd97588aece1b282c3acf2de8a485c4604fd84e04",
+          "sha256": "9e5902f0d2e88064d3b5e737227357c661364b617ad1061a996c13da9b4bd320",
+          "sha1": "48f92578610021ded6e64d21977f8d752a6dcedc",
+          "md5": "759c3702bfeaeb2d0ea3be631a576497"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 17,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [
+        {
+          "group": "org.springframework.boot",
+          "module": "spring-boot-autoconfigure",
+          "version": {
+            "requires": "3.2.5"
+          }
+        },
+        {
+          "group": "org.testcontainers",
+          "module": "testcontainers",
+          "version": {
+            "requires": "1.19.7"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "spring-boot-testcontainers-3.2.5.jar",
+          "url": "spring-boot-testcontainers-3.2.5.jar",
+          "size": 111742,
+          "sha512": "abf7d83f222d255cf1cc05674a351ee138a63dda29617ee96175e270a4c47852ca1060bd1761be86277b524cd97588aece1b282c3acf2de8a485c4604fd84e04",
+          "sha256": "9e5902f0d2e88064d3b5e737227357c661364b617ad1061a996c13da9b4bd320",
+          "sha1": "48f92578610021ded6e64d21977f8d752a6dcedc",
+          "md5": "759c3702bfeaeb2d0ea3be631a576497"
+        }
+      ]
+    },
+    {
+      "name": "mavenOptionalApiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 17,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api"
+      },
+      "files": [
+        {
+          "name": "spring-boot-testcontainers-3.2.5.jar",
+          "url": "spring-boot-testcontainers-3.2.5.jar",
+          "size": 111742,
+          "sha512": "abf7d83f222d255cf1cc05674a351ee138a63dda29617ee96175e270a4c47852ca1060bd1761be86277b524cd97588aece1b282c3acf2de8a485c4604fd84e04",
+          "sha256": "9e5902f0d2e88064d3b5e737227357c661364b617ad1061a996c13da9b4bd320",
+          "sha1": "48f92578610021ded6e64d21977f8d752a6dcedc",
+          "md5": "759c3702bfeaeb2d0ea3be631a576497"
+        }
+      ],
+      "capabilities": [
+        {
+          "group": "org.springframework.boot",
+          "name": "spring-boot-testcontainers-maven-optional",
+          "version": "3.2.5"
+        }
+      ]
+    },
+    {
+      "name": "mavenOptionalRuntimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 17,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "spring-boot-testcontainers-3.2.5.jar",
+          "url": "spring-boot-testcontainers-3.2.5.jar",
+          "size": 111742,
+          "sha512": "abf7d83f222d255cf1cc05674a351ee138a63dda29617ee96175e270a4c47852ca1060bd1761be86277b524cd97588aece1b282c3acf2de8a485c4604fd84e04",
+          "sha256": "9e5902f0d2e88064d3b5e737227357c661364b617ad1061a996c13da9b4bd320",
+          "sha1": "48f92578610021ded6e64d21977f8d752a6dcedc",
+          "md5": "759c3702bfeaeb2d0ea3be631a576497"
+        }
+      ],
+      "capabilities": [
+        {
+          "group": "org.springframework.boot",
+          "name": "spring-boot-testcontainers-maven-optional",
+          "version": "3.2.5"
+        }
+      ]
+    },
+    {
+      "name": "javadocElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "javadoc",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "spring-boot-testcontainers-3.2.5-javadoc.jar",
+          "url": "spring-boot-testcontainers-3.2.5-javadoc.jar",
+          "size": 140737,
+          "sha512": "8787328107345e164b200b6469cc32225a98e7b7f73fb115b303d13b3b9b02d0cb3d9a262852ab66345fd0513e777ec3de49492ab9e80e3a7c4ed2bb6f1208c9",
+          "sha256": "26dd172d8173048595a9d0968da217d96047333823d11267b8dce02df9ba657f",
+          "sha1": "8408fcb20e0d181046e041be100600ab7e67ca2a",
+          "md5": "8de50800fc1b0f661786b7ae3698e72f"
+        }
+      ]
+    },
+    {
+      "name": "sourcesElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "spring-boot-testcontainers-3.2.5-sources.jar",
+          "url": "spring-boot-testcontainers-3.2.5-sources.jar",
+          "size": 87207,
+          "sha512": "9e3478ed8cb5a4addc4a002eeffa4614c6187768feeb9bb1d1536d353eba8f1e29eacf20fbc1fc7b0ca7975bdbcb5a4844a911e533ca22edc4a9b8dcdacb7ed4",
+          "sha256": "5903c2360981c24893f1c99e9fb652bbf8379504695f78e326ca1575d543d823",
+          "sha1": "26e773e970fde74afb107e83b3f9ac6c7e294647",
+          "md5": "205e1a7a84d0e07a3a65ac519aed1095"
+        }
+      ]
+    }
+  ]
+}

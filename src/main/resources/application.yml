@@ -1,0 +1,190 @@
+spring:
+  application:
+    name: restaurant-management
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 10MB
+  
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/restaurant_db}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
+  
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    open-in-view: false  # Отключаем для предотвращения N+1 проблем
+    properties:
+      hibernate:
+        # dialect автоматически определяется по драйверу БД
+        format_sql: true
+        jdbc:
+          time_zone: UTC
+          batch_size: 50  # Batch insert/update для оптимизации
+        order_inserts: true  # Группировка INSERT
+        order_updates: true  # Группировка UPDATE
+  
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    # Production: never disable — detects drift / tampered migrations. Use `flyway repair` once if checksum was fixed legitimately.
+    validate-on-migrate: true
+
+  # Graceful shutdown: allow in-flight requests / scheduler tasks to finish.
+  lifecycle:
+    timeout-per-shutdown-phase: ${SHUTDOWN_TIMEOUT:30s}
+  
+  # SMTP настройки больше не используются - используется REST API
+  # mail:
+  #   host: mail.smtp2go.com
+  #   port: 587
+  #   username: ${SMTP2GO_USERNAME:your-smtp2go-username}
+  #   password: ${SMTP2GO_PASSWORD:your-smtp2go-password}
+
+server:
+  port: ${PORT:8080}
+  shutdown: graceful
+
+# Micrometer metrics: /actuator/metrics (no Prometheus scrape config in repo).
+management:
+  metrics:
+    tags:
+      application: ${spring.application.name}
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+
+logging:
+  level:
+    root: INFO
+    # Prod-safe default. Override to DEBUG in application-dev.yml / local profile.
+    com.restaurant: INFO
+  pattern:
+    # MDC key reqId set by RequestCorrelationFilter (X-Request-Id)
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%X{reqId:-}] - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/application.log
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173}
+
+# In-memory Bucket4j limits per path group + client key (see RateLimitPathGroupResolver)
+rate_limit:
+  trust_proxy: ${TRUST_PROXY:true}
+  auth_per_min: ${RATE_LIMIT_AUTH:10}
+  public_per_min: ${RATE_LIMIT_PUBLIC:45}
+  telegram_per_min: ${RATE_LIMIT_TELEGRAM:45}
+  loyalty_per_min: ${RATE_LIMIT_LOYALTY:45}
+  write_per_min: ${RATE_LIMIT_WRITE:15}
+  forecast_per_min: ${RATE_LIMIT_FORECAST:60}
+  standard_per_min: ${RATE_LIMIT_STANDARD:200}
+
+jwt:
+  secret: ${JWT_SECRET:}
+  access-token-expiration: 900000  # 15 minutes
+  refresh-token-expiration: 2592000000  # 30 days
+
+security:
+  allow-insecure-dev-secrets: ${ALLOW_INSECURE_DEV_SECRETS:false}
+
+# --- Multi-tenant JDBC ---
+# Tenant pool: used by JPA + TenantAwareDataSource (SET LOCAL app.current_restaurant_id / app.location_id for RLS).
+# Platform pool: optional bypass role for cross-tenant jobs (see MultiDataSourceConfig); use only where intended.
+#
+# Production MUST NOT use for APP_TENANT_DB_*:
+#   - PostgreSQL superuser (bypasses RLS regardless of policies)
+#   - Any role with BYPASSRLS attribute
+# Prefer a dedicated non-superuser role (e.g. app_tenant from Flyway V66) with row_security = on.
+# Dev defaults to DB_USERNAME postgres for convenience; tighten credentials in staging/prod.
+app:
+  datasource:
+    tenant:
+      jdbc-url: ${DB_URL:jdbc:postgresql://localhost:5432/restaurant_db}
+      username: ${APP_TENANT_DB_USERNAME:${DB_USERNAME:postgres}}
+      password: ${APP_TENANT_DB_PASSWORD:${DB_PASSWORD:postgres}}
+      driver-class-name: org.postgresql.Driver
+    platform:
+      jdbc-url: ${DB_URL:jdbc:postgresql://localhost:5432/restaurant_db}
+      username: ${APP_PLATFORM_DB_USERNAME:${DB_USERNAME:postgres}}
+      password: ${APP_PLATFORM_DB_PASSWORD:${DB_PASSWORD:postgres}}
+      driver-class-name: org.postgresql.Driver
+  email:
+    smtp2go:
+      api-key: ${SMTP2GO_API_KEY:}
+    from-name: Restaurant Management System
+    from-address: ${SMTP2GO_FROM_EMAIL:authorisation@bklam.ru}  # Email адрес отправителя
+
+outbox:
+  dispatcher:
+    interval-ms: 10000
+
+loyalty:
+  executor:
+    core-pool-size: 2
+    max-pool-size: 8
+    queue-capacity: 500
+    await-termination-seconds: 20
+
+qr:
+  signing:
+    secret: ${QR_SIGNING_SECRET:}
+  # Базовый URL фронта для ссылки в QR (без слэша в конце)
+  menu:
+    base-url: ${QR_MENU_BASE_URL:http://localhost:3000}
+    default-ttl-days: 365
+
+forecast:
+  service:
+    url: ${FORECAST_SERVICE_URL:http://localhost:8090}
+    health:
+      # HTTP GET {url}/health — disable in tests or when service intentionally absent.
+      enabled: ${FORECAST_HEALTH_CHECK:true}
+      # If true, unreachable service → UNKNOWN (not DOWN) so overall liveness can stay UP.
+      optional: ${FORECAST_HEALTH_OPTIONAL:true}
+  # Каждый понедельник в 03:00 — прогноз на месяц по всем ресторанам (cron: sec min hour day month day-of-week)
+  schedule:
+    cron: ${FORECAST_SCHEDULE_CRON:0 0 3 ? * MON}
+  internal_jwt:
+    issuer: "rms-backend"
+    secret: ${FORECAST_INTERNAL_JWT_SECRET_B64:}
+    ttl_minutes: 5
+
+telegram:
+  webhook:
+    # When true, TELEGRAM_WEBHOOK_SECRET is required at startup (see EarlySecuritySecretsEnvironmentPostProcessor).
+    enabled: ${TELEGRAM_WEBHOOK_ENABLED:false}
+    secret: ${TELEGRAM_WEBHOOK_SECRET:}
+  bot:
+    token: ${TELEGRAM_BOT_TOKEN:}
+  webapp:
+    max-auth-age-seconds: ${TELEGRAM_WEBAPP_MAX_AUTH_AGE_SECONDS:86400}
+  defaultRestaurantId: ${TELEGRAM_DEFAULT_RESTAURANT_ID:0}
+  payment:
+    service:
+      url: ${TELEGRAM_PAYMENT_SERVICE_URL:http://localhost:3001}  # URL NestJS Telegram Payment Service
+      health:
+        enabled: ${TELEGRAM_PAYMENT_HEALTH_CHECK:true}
+        optional: ${TELEGRAM_PAYMENT_HEALTH_OPTIONAL:true}

@@ -1,0 +1,27 @@
+# Multi-stage: build JAR then run. Use: docker build -f Dockerfile.backend -t restaurant-backend:latest .
+# Non-Alpine base for Apple Silicon (arm64) compatibility.
+FROM eclipse-temurin:17-jdk AS build
+WORKDIR /app
+
+# Gradle wrapper + deps (cache layer)
+COPY gradlew .
+COPY gradle gradle
+COPY build.gradle .
+COPY lombok.config .
+RUN ./gradlew dependencies --no-daemon || true
+
+# Source and build (retry on transient network errors: "Illegal packet size", "Tag mismatch")
+COPY src src
+ENV GRADLE_OPTS="-Dorg.gradle.internal.http.connectionTimeout=120000 -Dorg.gradle.internal.http.socketTimeout=120000"
+RUN for i in 1 2 3; do ./gradlew bootJar --no-daemon -x test && break; sleep 20; done
+
+# Run stage (Debian-based: supports amd64 and arm64)
+FROM eclipse-temurin:17-jre
+WORKDIR /app
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+COPY --from=build /app/build/libs/*.jar ./libs/
+# Директории для загрузки изображений (категории, блюда, hall) — должны существовать и быть доступны appuser
+RUN mkdir -p /app/uploads/categories /app/uploads/dishes /app/uploads/hall/assets && chown -R appuser:appuser /app/uploads
+USER appuser
+EXPOSE 8080
+ENTRYPOINT ["sh", "-c", "exec java -jar $(ls /app/libs/*.jar 2>/dev/null | grep -v plain | head -1)"]

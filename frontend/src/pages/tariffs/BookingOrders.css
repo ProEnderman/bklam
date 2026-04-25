@@ -1,0 +1,659 @@
+.active-bookings-page {
+  padding: 20px;
+  max-width: 1100px;
+}
+
+.active-bookings-page h1 {
+  margin: 0 0 4px;
+  font-size: 24px;
+}
+
+.active-bookings-page .page-subtitle {
+  color: #6b7280;
+  margin: 0 0 20px;
+  font-size: 14px;
+}
+
+/* ===== Telegram settings bar ===== */
+.tg-settings-bar {
+  background: white;
+  border-radius: 10px;
+  padding: 14px 20px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  margin-bottom: 20px;
+}
+
+.tg-bot-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.tg-bot-group label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #444;
+  white-space: nowrap;
+}
+
+.tg-input-group {
+  display: flex;
+  align-items: center;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  overflow: hidden;
+  background: white;
+}
+
+.tg-input-group .at-sign {
+  padding: 6px 0 6px 10px;
+  color: #9ca3af;
+  font-size: 14px;
+}
+
+.tg-input {
+  border: none;
+  outline: none;
+  padding: 6px 8px;
+  font-size: 14px;
+  width: 160px;
+}
+
+.btn-save-tg {
+  background: #f3f4f6;
+  border: none;
+  border-left: 1px solid #d1d5db;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.btn-save-tg:hover:not(:disabled) {
+  background: #e5e7eb;
+}
+
+.btn-save-tg:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.tg-status {
+  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: 12px;
+}
+
+.tg-status.ok {
+  background: rgba(74, 222, 128, 0.15);
+  color: #22c55e;
+}
+
+.tg-status.warn {
+  background: rgba(251, 191, 36, 0.15);
+  color: #f59e0b;
+}
+
+.btn-link-tg {
+  background: none;
+  border: none;
+  color: #667eea;
+  cursor: pointer;
+  font-size: 13px;
+  text-decoration: underline;
+}
+
+/* ===== Search bar ===== */
+.ab-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: white;
+  border-radius: 10px;
+  padding: 12px 20px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  margin-bottom: 16px;
+}
+
+.ab-search-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.ab-search-input:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.15);
+}
+
+.ab-search-clear {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+.ab-search-clear:hover { background: #fef2f2; color: #ef4444; }
+
+.ab-filter-orders {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #4b5563;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ab-filter-orders input { cursor: pointer; }
+
+.ab-search-count {
+  font-size: 13px;
+  color: #9ca3af;
+  white-space: nowrap;
+}
+
+/* ===== Empty state ===== */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+
+.empty-state p {
+  font-size: 16px;
+  color: #6b7280;
+  margin-bottom: 16px;
+}
+
+.btn-primary-link {
+  display: inline-block;
+  background: #667eea;
+  color: white;
+  padding: 10px 24px;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+  transition: background 0.15s;
+}
+
+.btn-primary-link:hover {
+  background: #5a6fd6;
+}
+
+/* ===== Booking group card ===== */
+.booking-group-card {
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.group-deleted-badge {
+  padding: 8px 20px;
+  background: #eef2ff;
+  color: #4338ca;
+  font-size: 13px;
+  font-weight: 500;
+  border-bottom: 1px solid #e0e7ff;
+}
+
+.group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.group-client {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.client-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.client-phone {
+  font-size: 13px;
+  color: #6b7280;
+  background: #eef2ff;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.group-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.group-total {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-delete-group {
+  background: none;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: #9ca3af;
+}
+
+.btn-delete-group:hover {
+  background: #fef2f2;
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+
+.total-label {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.group-total .total-amount {
+  font-size: 20px;
+  font-weight: 700;
+  color: #667eea;
+}
+
+/* Booking rows */
+.group-bookings {
+  padding: 0;
+}
+
+.booking-row {
+  display: flex;
+  align-items: center;
+  padding: 12px 20px;
+  border-bottom: 1px solid #f3f4f6;
+  gap: 16px;
+}
+
+.booking-row:last-child {
+  border-bottom: none;
+}
+
+.booking-row:hover {
+  background: #fafbff;
+}
+
+.booking-info {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.booking-activity {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.booking-time {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.booking-status {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  text-transform: uppercase;
+}
+
+.booking-status.confirmed {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.booking-status.draft {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.booking-status.paid {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.booking-amount {
+  font-size: 14px;
+  font-weight: 600;
+  color: #059669;
+  min-width: 80px;
+  text-align: right;
+}
+
+.booking-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.btn-sm {
+  padding: 4px 12px;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s;
+}
+
+.btn-edit {
+  background: #eef2ff;
+  color: #667eea;
+}
+
+.btn-edit:hover {
+  background: #e0e7ff;
+}
+
+.btn-cancel {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.btn-cancel:hover {
+  background: #fee2e2;
+}
+
+/* Add activity button */
+.btn-add-activity {
+  background: #eef2ff;
+  color: #667eea;
+  border: 1px dashed #a5b4fc;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.15s;
+}
+.btn-add-activity:hover { background: #e0e7ff; }
+
+/* Group footer */
+.group-footer {
+  padding: 14px 20px;
+  border-top: 1px solid #e5e7eb;
+  background: #fafbff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.group-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-success.btn-mark-paid {
+  padding: 10px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 8px;
+  background: #059669;
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-success.btn-mark-paid:hover:not(:disabled) {
+  background: #047857;
+}
+
+.btn-success.btn-mark-paid:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.group-paid-badge {
+  font-size: 16px;
+  font-weight: 600;
+  color: #059669;
+  padding: 8px 16px;
+  background: #dcfce7;
+  border-radius: 8px;
+  margin-left: auto;
+}
+
+.paid-badge {
+  font-size: 12px;
+  font-weight: 600;
+  color: #059669;
+  padding: 4px 10px;
+  background: #dcfce7;
+  border-radius: 10px;
+}
+
+/* Add-to-group modal extras */
+.field-small-inline {
+  flex: 0 0 100px;
+}
+
+.field-small-inline label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: #6b7280;
+  margin-bottom: 4px;
+}
+
+.field-small-inline input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.btn-pay {
+  padding: 10px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 8px;
+  background: #667eea;
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-pay:hover:not(:disabled) {
+  background: #5a6fd6;
+}
+
+.btn-pay:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ===== Edit modal ===== */
+.edit-booking-form {
+  padding: 10px 0;
+}
+
+.edit-booking-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.edit-booking-form label span {
+  font-size: 13px;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+.edit-booking-form select {
+  padding: 8px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.edit-booking-form .form-row {
+  display: flex;
+  gap: 12px;
+}
+
+.edit-booking-form .form-row > * {
+  flex: 1;
+}
+
+.edit-booking-form .form-row .form-input {
+  margin-bottom: 0;
+}
+
+.edit-pricing-result {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin: 12px 0;
+  font-size: 15px;
+  color: #166534;
+}
+
+.form-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #f3f4f6;
+}
+
+.btn-primary {
+  background: #667eea;
+  color: white;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.15s;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #5a6fd6;
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  padding: 8px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.15s;
+}
+
+.btn-secondary:hover {
+  background: #e5e7eb;
+}
+
+/* ===== Trailing gap (пребывание) ===== */
+.trailing-gap-row {
+  background: #fdf4ff;
+  border-left: 3px solid #c084fc;
+  animation: trailing-pulse 2s ease-in-out infinite;
+}
+
+@keyframes trailing-pulse {
+  0%, 100% { background: #fdf4ff; }
+  50% { background: #f5f0ff; }
+}
+
+.trailing-activity {
+  color: #7c3aed !important;
+}
+
+.trailing-status {
+  background: #f5d0fe !important;
+  color: #a21caf !important;
+  font-weight: 600 !important;
+  text-transform: none !important;
+}
+
+.trailing-amount {
+  color: #7c3aed !important;
+  font-style: italic;
+}
+
+.trailing-hint {
+  font-size: 11px;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+/* Stop-check styles */
+.stop-check-badge {
+  font-size: 10px;
+  color: #059669;
+  background: #ecfdf5;
+  padding: 2px 6px;
+  border-radius: 10px;
+  border: 1px solid #a7f3d0;
+  margin-left: 6px;
+  font-weight: 500;
+}
+
+.stop-check-free {
+  color: #059669;
+  font-weight: 600;
+}
+
+/* Секции: Заказы / Отменённые заказы */
+.booking-orders-section {
+  margin-bottom: 28px;
+}
+
+.booking-orders-section-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.booking-orders-section .section-empty {
+  color: #6b7280;
+  font-size: 14px;
+  margin: 0 0 8px;
+}

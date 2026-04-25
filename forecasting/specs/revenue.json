@@ -1,0 +1,31 @@
+{
+  "model_name": "sarima",
+  "model_family": "sarima",
+  "params": {
+    "order": [
+      0,
+      0,
+      0
+    ],
+    "seasonal_order": [
+      2,
+      0,
+      1,
+      7
+    ]
+  },
+  "transform_name": "log",
+  "mean_mape": 0.21305862820323102,
+  "mean_smape": 0.213059,
+  "mean_mae": 21100.5789,
+  "diagnostics": {
+    "folds": 20,
+    "warnings": []
+  },
+  "is_valid": true,
+  "warnings": [],
+  "composed": false,
+  "component_models": null,
+  "trained_at": "2026-02-21T15:51:54.585808",
+  "data_points": 367
+}

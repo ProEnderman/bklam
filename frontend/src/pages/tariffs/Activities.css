@@ -1,0 +1,56 @@
+.activities-page {
+  padding: 20px;
+}
+
+.activity-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.activity-form .form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  align-items: end;
+}
+
+.activity-form .form-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.activity-form .form-row select {
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.form-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.activity-full-venue-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  background: #f5f3ff;
+  border: 1px solid #ddd6fe;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #4c1d95;
+}
+
+.activity-full-venue-row input[type='checkbox'] {
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+
+
+

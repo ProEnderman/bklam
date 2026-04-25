@@ -1,0 +1,131 @@
+.qr-config-page {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.qr-config-page h1 {
+  margin-bottom: 8px;
+  font-size: 1.5rem;
+}
+
+.qr-config-desc {
+  color: #64748b;
+  margin-bottom: 24px;
+  font-size: 0.95rem;
+}
+
+.qr-config-loading,
+.qr-config-error {
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.qr-config-error {
+  background: #fef2f2;
+  color: #b91c1c;
+  margin-bottom: 16px;
+}
+
+.qr-config-section {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.qr-config-section h2 {
+  font-size: 1rem;
+  margin: 0 0 12px 0;
+  color: #334155;
+}
+
+.qr-config-url-wrap {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.qr-config-url {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  background: #f8fafc;
+}
+
+.qr-config-qr-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.qr-config-qr-wrap canvas {
+  border-radius: 8px;
+  background: #fff;
+}
+
+.qr-config-download {
+  margin-top: 16px;
+}
+
+.qr-config-expiry-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.qr-config-datetime {
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 1rem;
+}
+
+.qr-config-extend-tip {
+  background: #eff6ff;
+  color: #1e40af;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  margin-bottom: 12px;
+  border-left: 4px solid #3b82f6;
+}
+
+.qr-config-expiry-soon {
+  background: #fef3c7;
+  color: #92400e;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  margin-bottom: 12px;
+  border-left: 4px solid #f59e0b;
+}
+
+.qr-config-expired {
+  color: #b91c1c;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+}
+
+.qr-config-quick-extend {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.qr-config-quick-extend span {
+  font-size: 0.9rem;
+  color: #64748b;
+}
+
+.qr-config-expiry-hint {
+  margin-top: 12px;
+  font-size: 0.85rem;
+  color: #64748b;
+}

@@ -1,0 +1,105 @@
+.tariffs-page {
+  padding: 20px;
+}
+
+.tariff-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.tariff-form .form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  align-items: end;
+}
+
+.tariff-form .form-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.tariff-form .form-row select {
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.form-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.modifiers-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.modifiers-info {
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.modifiers-info p {
+  margin: 5px 0;
+}
+
+.modifiers-actions {
+  padding: 15px;
+  background: #fff3cd;
+  border-radius: 8px;
+}
+
+.modifiers-actions label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.modifiers-actions select {
+  padding: 6px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.modifiers-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.modifiers-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.modifiers-table th,
+.modifiers-table td {
+  padding: 10px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+}
+
+.modifiers-table th {
+  background: #f8f9fa;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+}
+
+.modifiers-table tr:hover {
+  background: #f5f5f5;
+}
+
+.modifiers-table select,
+.modifiers-table input {
+  padding: 4px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+

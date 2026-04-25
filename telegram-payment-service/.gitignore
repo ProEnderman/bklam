@@ -1,0 +1,8 @@
+# Mirrors root rules for work isolated in this directory
+node_modules/
+dist/
+coverage/
+.nyc_output/
+.vite/
+*.tsbuildinfo
+.eslintcache

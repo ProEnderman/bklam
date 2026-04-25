@@ -1,0 +1,154 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-0000-4000-8000-00000000feed",
+    "name": "RMS — API demo",
+    "description": "Small subset for reviewers: health, metrics, OpenAPI, orders (JWT), platform outbox + loyalty reconciliation (HEAD_ADMIN JWT).\n\nSetup: set collection variables baseUrl (default http://localhost:8080), accessToken (Bearer from your login flow or Swagger UI), xRequestIdExample (optional static UUID).\n\nAuth: get a JWT via your normal flow; /api/platform/* and /api/orders need appropriate roles. Public endpoints: actuator, v3 API docs, Swagger page.\n\nRequest correlation: send X-Request-Id (see request Actuator / health with X-Request-Id); response echoes the same header.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "accessToken", "value": "" },
+    { "key": "xRequestIdExample", "value": "f47ac10b-58cc-4372-a567-0e02b2c3d479" }
+  ],
+  "item": [
+    {
+      "name": "Public (no token)",
+      "item": [
+        {
+          "name": "Actuator / health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/actuator/health"
+          }
+        },
+        {
+          "name": "Actuator / health (with X-Request-Id)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-Request-Id", "value": "{{xRequestIdExample}}", "type": "text" }
+            ],
+            "url": "{{baseUrl}}/actuator/health"
+          }
+        },
+        {
+          "name": "Actuator / metrics — http.server.requests",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/actuator/metrics/http.server.requests"
+          }
+        },
+        {
+          "name": "OpenAPI — portfolio group (JSON)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/v3/api-docs/portfolio"
+          }
+        },
+        {
+          "name": "OpenAPI — full (all groups)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/v3/api-docs"
+          }
+        },
+        {
+          "name": "Swagger UI (HTML)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/swagger-ui.html"
+          }
+        }
+      ]
+    },
+    {
+      "name": "API (Bearer — set accessToken)",
+      "item": [
+        {
+          "name": "Orders / list (paged)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [ { "key": "token", "value": "{{accessToken}}", "type": "string" } ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders?page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Dishes / list (paged) — menu demo",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [ { "key": "token", "value": "{{accessToken}}", "type": "string" } ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/dishes?page=0&size=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "dishes"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "5" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Platform (HEAD_ADMIN — set accessToken)",
+      "item": [
+        {
+          "name": "Outbox / stats",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [ { "key": "token", "value": "{{accessToken}}", "type": "string" } ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/platform/outbox/stats"
+          }
+        },
+        {
+          "name": "Loyalty / accrual reconciliation (order guard row)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [ { "key": "token", "value": "{{accessToken}}", "type": "string" } ]
+            },
+            "method": "GET",
+            "header": [
+              { "key": "X-Request-Id", "value": "{{xRequestIdExample}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/platform/loyalty/accrual?restaurantId=1&orderId=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "platform", "loyalty", "accrual"],
+              "query": [
+                { "key": "restaurantId", "value": "1" },
+                { "key": "orderId", "value": "1" }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

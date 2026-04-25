@@ -1,0 +1,43 @@
+# Local development: dedicated DB + full Flyway chain (baseline-on-migrate: false).
+# Standard database name: restaurant_db_dev (same as docker-compose POSTGRES_DB default).
+# Uses DEV_DB_URL (not DB_URL) so a stale .env pointing at restaurant_db does not override this.
+#
+# Recommended one-liner (creates DB if needed, then starts):
+#   ./gradlew devBootRun
+#
+# bootRun + dev: Gradle can merge project `.env` into the process env (see build.gradle).
+# Set JWT_SECRET / QR_SIGNING_SECRET / FORECAST_INTERNAL_JWT_SECRET_B64 there (see .env.example).
+#
+# Prod/stage must not use profile `dev`; fail-fast for secrets stays strict without this profile.
+
+logging:
+  level:
+    com.restaurant: DEBUG
+
+spring:
+  datasource:
+    url: ${DEV_DB_URL:jdbc:postgresql://localhost:5432/restaurant_db_dev}
+  flyway:
+    baseline-on-migrate: false
+    validate-on-migrate: true
+
+app:
+  datasource:
+    tenant:
+      jdbc-url: ${DEV_DB_URL:jdbc:postgresql://localhost:5432/restaurant_db_dev}
+    platform:
+      jdbc-url: ${DEV_DB_URL:jdbc:postgresql://localhost:5432/restaurant_db_dev}
+
+jwt:
+  secret: ${JWT_SECRET}
+
+qr:
+  signing:
+    secret: ${QR_SIGNING_SECRET}
+
+forecast:
+  internal_jwt:
+    secret: ${FORECAST_INTERNAL_JWT_SECRET_B64}
+
+security:
+  allow-insecure-dev-secrets: true

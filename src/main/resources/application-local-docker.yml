@@ -1,0 +1,27 @@
+# Local dev with Docker Compose Postgres (host port 5433).
+# Standard DB name: restaurant_db_dev (same as profile `dev` on port 5432).
+#
+# Use: SPRING_PROFILES_ACTIVE=local-docker ./gradlew bootRun
+# Prerequisite: docker compose up -d postgres
+#
+# Override JDBC with DEV_DB_URL, e.g. jdbc:postgresql://localhost:5433/restaurant_db_dev
+
+logging:
+  level:
+    com.restaurant: DEBUG
+
+spring:
+  datasource:
+    url: ${DEV_DB_URL:jdbc:postgresql://localhost:5433/restaurant_db_dev}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+app:
+  datasource:
+    tenant:
+      jdbc-url: ${DEV_DB_URL:jdbc:postgresql://localhost:5433/restaurant_db_dev}
+      username: ${DB_USERNAME:postgres}
+      password: ${DB_PASSWORD:postgres}
+    platform:
+      jdbc-url: ${DEV_DB_URL:jdbc:postgresql://localhost:5433/restaurant_db_dev}
+      username: ${DB_USERNAME:postgres}
+      password: ${DB_PASSWORD:postgres}

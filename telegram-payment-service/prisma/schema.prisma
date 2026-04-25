@@ -1,0 +1,197 @@
+// Prisma Schema for Telegram Payment Service
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ===========================================
+// Core Entities
+// ===========================================
+
+model Restaurant {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users    User[]
+  invoices Invoice[]
+
+  @@map("restaurants")
+}
+
+model User {
+  id           String  @id @default(cuid())
+  email        String  @unique
+  passwordHash String  @map("password_hash")
+  role         Role    @default(CASHIER)
+
+  restaurantId String     @map("restaurant_id")
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+
+  telegramAccount  TelegramAccount?
+  telegramSessions TelegramSession[]
+  paymentRequests  PaymentRequest[]
+  auditLogs        AuditLog[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+enum Role {
+  ADMIN
+  OWNER
+  MANAGER
+  CASHIER
+}
+
+// ===========================================
+// Telegram Entities
+// ===========================================
+
+model TelegramAccount {
+  id     String @id @default(cuid())
+  userId String @unique @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  telegramUserId BigInt  @unique @map("telegram_user_id")
+  username       String?
+  firstName      String? @map("first_name")
+  lastName       String? @map("last_name")
+  photoUrl       String? @map("photo_url")
+  authDate       DateTime @map("auth_date")
+  hash           String  // Original hash from widget for audit
+  verifiedAt     DateTime @default(now()) @map("verified_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("telegram_accounts")
+}
+
+model TelegramSession {
+  id     String @id @default(cuid())
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  encryptedSession String @map("encrypted_session") // AES-GCM encrypted session string
+  keyId            String @map("key_id") // Encryption key identifier for rotation
+  phone            String // Phone number (masked in logs)
+  bankBotUsername  String? @map("bank_bot_username") // Per-user bank bot username
+
+  lastUsedAt   DateTime? @map("last_used_at")
+  revokedAt    DateTime? @map("revoked_at")
+  failureCount Int       @default(0) @map("failure_count")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([userId, revokedAt])
+  @@map("telegram_sessions")
+}
+
+// ===========================================
+// Payment Entities
+// ===========================================
+
+model Invoice {
+  id           String     @id @default(cuid())
+  restaurantId String     @map("restaurant_id")
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+
+  invoiceNumber String  @unique @map("invoice_number")
+  amount        Decimal @db.Decimal(10, 2)
+  currency      String  @default("RUB")
+  description   String?
+
+  paymentRequests PaymentRequest[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("invoices")
+}
+
+model PaymentRequest {
+  id        String  @id @default(cuid())
+  invoiceId String  @map("invoice_id")
+  invoice   Invoice @relation(fields: [invoiceId], references: [id])
+  userId    String  @map("user_id")
+  user      User    @relation(fields: [userId], references: [id])
+
+  idempotencyKey String               @unique @map("idempotency_key") // hash(invoiceId + userId)
+  status         PaymentRequestStatus @default(CREATED)
+
+  sentMessageId BigInt? @map("sent_message_id") // Telegram message ID
+  attemptNo     Int     @default(1) @map("attempt_no")
+
+  errorCode    String? @map("error_code") // TIMEOUT, SESSION_INVALID, etc.
+  errorMessage String? @map("error_message")
+
+  paymentLink PaymentLink?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([invoiceId, userId])
+  @@index([status])
+  @@map("payment_requests")
+}
+
+enum PaymentRequestStatus {
+  CREATED
+  SENT
+  LINK_RECEIVED
+  TIMEOUT
+  UNPARSABLE
+  SESSION_INVALID
+  RATE_LIMITED
+  CANCELLED
+}
+
+model PaymentLink {
+  id               String         @id @default(cuid())
+  paymentRequestId String         @unique @map("payment_request_id")
+  paymentRequest   PaymentRequest @relation(fields: [paymentRequestId], references: [id], onDelete: Cascade)
+
+  encryptedUrl String? @map("encrypted_url") // Optional: encrypt if storing full URL
+  urlHash      String  @map("url_hash") // SHA256 of URL for caching/dedup
+  botMessageId BigInt? @map("bot_message_id") // ID of bot's reply message
+
+  expiresAt DateTime? @map("expires_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("payment_links")
+}
+
+// ===========================================
+// Audit
+// ===========================================
+
+model AuditLog {
+  id     String  @id @default(cuid())
+  userId String? @map("user_id")
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  action   String // SESSION_CREATED, SESSION_REVOKED, PAYMENT_REQUESTED, etc.
+  entity   String // telegram_session, payment_request
+  entityId String? @map("entity_id")
+
+  metadata  Json?   // Additional context (masked)
+  ip        String?
+  userAgent String? @map("user_agent")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+  @@map("audit_logs")
+}

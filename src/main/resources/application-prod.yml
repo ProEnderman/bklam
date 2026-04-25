@@ -1,0 +1,39 @@
+# Production profile — activate with: SPRING_PROFILES_ACTIVE=prod
+# Secrets: use environment variables only (no insecure defaults here).
+# EarlySecuritySecretsEnvironmentPostProcessor still validates lengths/placeholders before context refresh.
+
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+# OpenAPI disabled for prod; use non-prod or explicit override to enable.
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+logging:
+  level:
+    root: INFO
+    com.restaurant: INFO
+
+security:
+  allow-insecure-dev-secrets: false
+
+jwt:
+  secret: ${JWT_SECRET}
+
+qr:
+  signing:
+    secret: ${QR_SIGNING_SECRET}
+
+forecast:
+  internal_jwt:
+    secret: ${FORECAST_INTERNAL_JWT_SECRET_B64}
+
+telegram:
+  webhook:
+    enabled: ${TELEGRAM_WEBHOOK_ENABLED:false}
+    secret: ${TELEGRAM_WEBHOOK_SECRET:}

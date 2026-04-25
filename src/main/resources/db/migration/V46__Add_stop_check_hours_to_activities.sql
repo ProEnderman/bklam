@@ -1,0 +1,1 @@
+ALTER TABLE activities ADD COLUMN stop_check_hours DOUBLE PRECISION DEFAULT NULL;

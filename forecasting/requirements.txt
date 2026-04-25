@@ -1,0 +1,18 @@
+# Pinned runtime dependencies (reproducible installs).
+# Python: 3.11 — align with forecasting/Dockerfile, CI, and .python-version.
+# Use a fresh `python3.11 -m venv .venv` locally; Python 3.13+ may lack wheels for pinned scipy (avoid source builds).
+# Legacy direct-DB deps (psycopg2, sqlalchemy) dropped: data path is Java API only (repository.py).
+
+fastapi==0.115.0
+uvicorn[standard]==0.32.1
+statsmodels==0.14.2
+pandas==2.2.2
+numpy==1.26.4
+scipy==1.13.1
+pydantic==2.8.0
+python-dotenv==1.0.1
+python-jose[cryptography]==3.3.0
+requests==2.32.3
+prophet==1.1.6
+holidays==0.57
+openpyxl==3.1.5

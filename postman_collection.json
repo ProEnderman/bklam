@@ -1,0 +1,351 @@
+{
+  "info": {
+    "name": "Restaurant Management API",
+    "description": "API для системы управления рестораном",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080/api",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Ingredients",
+      "item": [
+        {
+          "name": "Get All Ingredients",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/ingredients?q=&belowMin=&page=0&size=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["ingredients"],
+              "query": [
+                {"key": "q", "value": ""},
+                {"key": "belowMin", "value": ""},
+                {"key": "page", "value": "0"},
+                {"key": "size", "value": "20"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Ingredient",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Тестовый ингредиент\",\n  \"unit\": \"G\",\n  \"stockQty\": 1000,\n  \"minQty\": 100\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/ingredients",
+              "host": ["{{baseUrl}}"],
+              "path": ["ingredients"]
+            }
+          }
+        },
+        {
+          "name": "Get Ingredient by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/ingredients/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["ingredients", "1"]
+            }
+          }
+        },
+        {
+          "name": "Update Ingredient",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Обновленный ингредиент\",\n  \"unit\": \"G\",\n  \"stockQty\": 1500,\n  \"minQty\": 150\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/ingredients/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["ingredients", "1"]
+            }
+          }
+        },
+        {
+          "name": "Delete Ingredient",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/ingredients/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["ingredients", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dishes",
+      "item": [
+        {
+          "name": "Get All Dishes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/dishes?q=&activeOnly=&page=0&size=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["dishes"],
+              "query": [
+                {"key": "q", "value": ""},
+                {"key": "activeOnly", "value": ""},
+                {"key": "page", "value": "0"},
+                {"key": "size", "value": "20"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Dish",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Тестовое блюдо\",\n  \"price\": 250.50,\n  \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/dishes",
+              "host": ["{{baseUrl}}"],
+              "path": ["dishes"]
+            }
+          }
+        },
+        {
+          "name": "Get Recipe",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/dishes/1/recipe",
+              "host": ["{{baseUrl}}"],
+              "path": ["dishes", "1", "recipe"]
+            }
+          }
+        },
+        {
+          "name": "Update Recipe",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ingredients\": [\n    {\n      \"ingredientId\": 1,\n      \"qtyPerDish\": 100\n    },\n    {\n      \"ingredientId\": 2,\n      \"qtyPerDish\": 50\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/dishes/1/recipe",
+              "host": ["{{baseUrl}}"],
+              "path": ["dishes", "1", "recipe"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Stock",
+      "item": [
+        {
+          "name": "Stock IN",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ingredientId\": 1,\n  \"qty\": 500,\n  \"note\": \"Поступление товара\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/stock/in",
+              "host": ["{{baseUrl}}"],
+              "path": ["stock", "in"]
+            }
+          }
+        },
+        {
+          "name": "Stock OUT",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ingredientId\": 1,\n  \"qty\": 100,\n  \"reason\": \"SPOILAGE\",\n  \"note\": \"Порча товара\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/stock/out",
+              "host": ["{{baseUrl}}"],
+              "path": ["stock", "out"]
+            }
+          }
+        },
+        {
+          "name": "Get Stock Movements",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/stock/movements?from=&to=&ingredientId=&type=&reason=&page=0&size=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["stock", "movements"],
+              "query": [
+                {"key": "from", "value": ""},
+                {"key": "to", "value": ""},
+                {"key": "ingredientId", "value": ""},
+                {"key": "type", "value": ""},
+                {"key": "reason", "value": ""},
+                {"key": "page", "value": "0"},
+                {"key": "size", "value": "20"}
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "item": [
+        {
+          "name": "Create Order",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders"]
+            }
+          }
+        },
+        {
+          "name": "Get All Orders",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/orders?from=&to=&status=&page=0&size=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders"],
+              "query": [
+                {"key": "from", "value": ""},
+                {"key": "to", "value": ""},
+                {"key": "status", "value": ""},
+                {"key": "page", "value": "0"},
+                {"key": "size", "value": "20"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Add Item to Order",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dishId\": 1,\n  \"qty\": 2\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders/1/items",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders", "1", "items"]
+            }
+          }
+        },
+        {
+          "name": "Update Order Item",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"qty\": 3\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders/1/items/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders", "1", "items", "1"]
+            }
+          }
+        },
+        {
+          "name": "Close Order",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/orders/1/close",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders", "1", "close"]
+            }
+          }
+        },
+        {
+          "name": "Cancel Order",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/orders/1/cancel",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders", "1", "cancel"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Analytics",
+      "item": [
+        {
+          "name": "Get Revenue",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/analytics/revenue?from=2024-01-01&to=2024-12-31",
+              "host": ["{{baseUrl}}"],
+              "path": ["analytics", "revenue"],
+              "query": [
+                {"key": "from", "value": "2024-01-01"},
+                {"key": "to", "value": "2024-12-31"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Top Dishes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/analytics/top-dishes?from=2024-01-01&to=2024-12-31&limit=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["analytics", "top-dishes"],
+              "query": [
+                {"key": "from", "value": "2024-01-01"},
+                {"key": "to", "value": "2024-12-31"},
+                {"key": "limit", "value": "5"}
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
+

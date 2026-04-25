@@ -1,0 +1,18 @@
+{
+  "model_name": "same_day_last_week",
+  "model_family": "baseline",
+  "params": {
+    "lookback_weeks": 8
+  },
+  "transform_name": "identity",
+  "mean_mape": 0.18846168946578254,
+  "mean_smape": null,
+  "mean_mae": null,
+  "diagnostics": {},
+  "is_valid": true,
+  "warnings": [],
+  "composed": false,
+  "component_models": null,
+  "trained_at": "2026-03-04T17:21:43.042731",
+  "data_points": 138
+}

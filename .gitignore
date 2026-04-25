@@ -1,0 +1,109 @@
+HELP.md
+
+### Gradle / JVM ###
+.gradle/
+.gradle-judge/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+*.class
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/nbdist/
+/.nb-gradle/
+
+### VS Code ###
+.vscode/
+
+### Environment ###
+.env
+.env.local
+*.log
+logs/
+
+### DB backups ###
+backups/
+
+### Application ###
+application-local.yml
+
+### DB migration dumps ###
+scripts/backups/
+
+# --- generated / runtime (keep repo diffs clean) ---
+
+### Node / npm / Nest / Vite ###
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.pnpm-store/
+dist/
+dist-ssr/
+*.tsbuildinfo
+.vite/
+
+### Python ###
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+*.so
+
+### Test & coverage ###
+coverage/
+.nyc_output/
+.coverage
+.coverage.*
+htmlcov/
+*.cover
+.hypothesis/
+junit.xml
+test-results/
+
+### Local / IDE tooling caches (not application config) ###
+.gradle-local/
+.eslintcache
+
+### OS ###
+.DS_Store
+Thumbs.db
+
+### Runtime uploads (local dev & Docker bind mount to ./uploads) ###
+# Ignore directory contents but keep placeholder tracked (cannot use "uploads/" alone — blocks !.gitkeep)
+uploads/*
+!uploads/.gitkeep

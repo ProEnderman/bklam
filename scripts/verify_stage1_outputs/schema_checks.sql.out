@@ -1,0 +1,111 @@
+=== 1) Tables (public schema) ===
+          table_name           
+-------------------------------
+ activities
+ activity_log
+ booking_notifications
+ bookings
+ brands
+ calendar_special_dates
+ calendars
+ daily_branch_revenue
+ dish_categories
+ dish_ingredients
+ dish_option_groups
+ dishes
+ employee_utilization
+ flyway_schema_history
+ guest_sessions
+ hall_assets
+ hall_maps
+ hall_placed_items
+ hall_tables
+ hall_zones
+ holdings
+ ingredients
+ legal_entities
+ locations
+ loyalty_achievements
+ loyalty_bonus_accounts
+ loyalty_bonus_ledger
+ loyalty_campaign_segments
+ loyalty_campaigns
+ loyalty_guest_achievements
+ loyalty_guest_aliases
+ loyalty_guest_tier_history
+ loyalty_guests
+ loyalty_mission_progress
+ loyalty_missions
+ loyalty_order_accruals
+ loyalty_personalized_offers
+ loyalty_rfm_snapshots
+ loyalty_segments
+ loyalty_tiers
+ option_group_templates
+ option_item_templates
+ order_item_options
+ order_items
+ order_payment_marks
+ order_share_items
+ order_shares
+ orders
+ outbox_events
+ pricing_breakdowns
+ pricing_rule_impact
+ pricing_runs
+ refresh_tokens
+ reservation_tables
+ resources
+ restaurants
+ service_performance
+ shift_swap_requests
+ shift_templates
+ shifts
+ stock_movements
+ stop_check_analytics
+ table_reservations
+ tariff_calendars
+ tariff_plans
+ tariff_rules
+ tariff_special_date_modifiers
+ telegram_sessions
+ users
+ verification_codes
+ warehouses
+(71 rows)
+
+
+=== 2) Stage 1 tables exist ===
+ holdings | brands | legal_entities | locations | warehouses 
+----------+--------+----------------+-----------+------------
+ t        | t      | t              | t         | t
+(1 row)
+
+
+=== 3) Counts: restaurants vs locations ===
+ restaurants | locations 
+-------------+-----------
+           1 |         1
+(1 row)
+
+
+=== 4) Locations mapping (first 20) ===
+ id |      name       | legacy_restaurant_id 
+----+-----------------+----------------------
+  1 | Test Restaurant |                    1
+(1 row)
+
+
+=== 5) Users: total and without location_id ===
+ total_users | users_without_location | with_restaurant_but_no_location 
+-------------+------------------------+---------------------------------
+           4 |                      2 |                               0
+(1 row)
+
+
+=== 6) Orders: has location_id column and sample ===
+ total_orders | orders_with_location 
+--------------+----------------------
+            0 |                    0
+(1 row)
+

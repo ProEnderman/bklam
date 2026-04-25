@@ -1,0 +1,183 @@
+# Full stack in Docker (backend, frontend, telegram-payment, forecast). Postgres: host 5433 (avoids conflict with local :5432).
+#
+# --- Recommended "API on host" path (clean machine) ---
+# 1) cp .env.example .env  — JWT_SECRET, QR_SIGNING_SECRET, FORECAST_INTERNAL_JWT_SECRET_B64
+# 2) docker compose up -d postgres redis
+# 3) DEV_DB_URL=jdbc:postgresql://localhost:5433/restaurant_db_dev  (in .env)
+# 4) ./gradlew devBootRun  or  make run  or  ./scripts/run.sh
+# 5) curl -fsS http://localhost:8080/actuator/health
+# Migrations on first start; demo data: README Quick start.
+#
+# Full UI:  docker compose up --build
+# Or only infra: docker compose up -d postgres redis  → then bootRun with local-docker (see docs/DEV_DOCKER.md)
+# App DB: restaurant_db_dev (POSTGRES_DB in .env). `db-ensure` creates extra DBs; full reset: docker compose down -v
+
+networks:
+  db_net:
+    driver: bridge
+  backend_net:
+    driver: bridge
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      # Dev standard: same name as local ./gradlew bootRun with profile dev (see DEV_DB_URL / application-dev.yml)
+      POSTGRES_DB: ${POSTGRES_DB:-restaurant_db_dev}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      # Data volume: snapshot/restore at infra level is provider-specific; app-level logical backups: ./scripts/db-backup.sh or docs/BACKUP_RECOVERY.md
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres-init:/docker-entrypoint-initdb.d
+    networks:
+      - db_net
+    # Use default maintenance DB `postgres` so health passes even if POSTGRES_DB was never created (old volume).
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # One-shot: CREATE DATABASE for app + telegram_payments if missing (initdb scripts only run on empty volume).
+  db-ensure:
+    image: postgres:16
+    restart: "no"
+    environment:
+      PGPASSWORD: postgres
+      APP_DB_NAME: ${POSTGRES_DB:-restaurant_db_dev}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./docker/postgres-ensure/ensure.sh:/ensure.sh:ro
+    networks:
+      - db_net
+    entrypoint: ["/bin/bash", "/ensure.sh"]
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    networks:
+      - db_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    image: restaurant-backend:latest
+    ports:
+      - "8080:8080"
+    volumes:
+      # Persist uploaded images across container rebuilds (categories/dishes/hall assets)
+      - ./uploads:/app/uploads
+    environment:
+      APP_ENV: ${APP_ENV:-dev}
+      ALLOW_INSECURE_DEV_SECRETS: ${ALLOW_INSECURE_DEV_SECRETS:-false}
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-restaurant_db_dev}
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      FORECAST_SERVICE_URL: http://forecast:8090
+      FORECAST_INTERNAL_JWT_SECRET_B64: ${FORECAST_INTERNAL_JWT_SECRET_B64:?FORECAST_INTERNAL_JWT_SECRET_B64 is required}
+      TELEGRAM_PAYMENT_SERVICE_URL: http://telegram-payment:3001
+      # Same value as telegram-payment/JWT_SECRET so proxied JWT validates there.
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      QR_SIGNING_SECRET: ${QR_SIGNING_SECRET:?QR_SIGNING_SECRET is required}
+      APP_DATASOURCE_TENANT_JDBC_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-restaurant_db_dev}
+      APP_DATASOURCE_PLATFORM_JDBC_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-restaurant_db_dev}
+      APP_DATASOURCE_TENANT_USERNAME: postgres
+      APP_DATASOURCE_TENANT_PASSWORD: postgres
+      APP_DATASOURCE_PLATFORM_USERNAME: postgres
+      APP_DATASOURCE_PLATFORM_PASSWORD: postgres
+      SMTP2GO_API_KEY: ${SMTP2GO_API_KEY:-}
+      SMTP2GO_FROM_EMAIL: ${SMTP2GO_FROM_EMAIL:-authorisation@bklam.ru}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      db-ensure:
+        condition: service_completed_successfully
+    networks:
+      - db_net
+      - backend_net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    image: restaurant-frontend:dev
+    ports:
+      - "3000:3000"
+    # Vite проксирует на сервис backend по Docker DNS (backend_net). Через host.docker.internal:8080 на macOS
+    # часто бывают socket hang up при нагрузке; прямой backend:8080 стабильнее.
+    environment:
+      BACKEND_PROXY_ORIGIN: http://backend:8080
+    depends_on:
+      - backend
+    networks:
+      - backend_net
+
+  # FastAPI forecast: ONLY backend_net — no db_net, so postgres hostname does not resolve
+  forecast:
+    build:
+      context: ./forecasting
+      dockerfile: Dockerfile
+    ports:
+      - "8090:8090"
+    environment:
+      APP_ENV: ${APP_ENV:-dev}
+      ALLOW_INSECURE_DEV_SECRETS: ${ALLOW_INSECURE_DEV_SECRETS:-false}
+      JAVA_BACKEND_URL: http://backend:8080
+      FORECAST_INTERNAL_JWT_SECRET_B64: ${FORECAST_INTERNAL_JWT_SECRET_B64:?FORECAST_INTERNAL_JWT_SECRET_B64 is required}
+      FORECAST_INTERNAL_JWT_ISSUER: rms-backend
+    networks:
+      - backend_net
+    depends_on:
+      - backend
+
+  # Telegram Payment Service (NestJS): оплата, MTProto, привязка аккаунта. БД telegram_payments — см. db-ensure / docker/postgres-init.
+  telegram-payment:
+    build:
+      context: ./telegram-payment-service
+      dockerfile: Dockerfile
+    image: telegram-payment-service:latest
+    ports:
+      - "3001:3001"
+    environment:
+      APP_ENV: ${APP_ENV:-dev}
+      ALLOW_INSECURE_DEV_SECRETS: ${ALLOW_INSECURE_DEV_SECRETS:-false}
+      PORT: 3001
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/telegram_payments?schema=public
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      # Placeholder so container starts without .env; for real MTProto set in .env (from https://my.telegram.org)
+      TG_API_ID: ${TG_API_ID:-12345}
+      TG_API_HASH: ${TG_API_HASH:-placeholder-replace-with-real-from-my-telegram-org}
+      TG_BOT_TOKEN: ${TG_BOT_TOKEN:-}
+      BANK_BOT_USERNAME: ${BANK_BOT_USERNAME:-}
+      MASTER_KEY: ${TELEGRAM_PAYMENT_MASTER_KEY:?TELEGRAM_PAYMENT_MASTER_KEY is required}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      db-ensure:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    networks:
+      - db_net
+      - backend_net
+
+volumes:
+  postgres_data:

@@ -1,0 +1,10 @@
+# Frontend dev server in Docker. Browser will call API at host localhost:8080.
+# Build: docker build -f frontend/Dockerfile.dev -t restaurant-frontend:dev ./frontend
+FROM node:20-alpine
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY . .
+EXPOSE 3000
+# Use same-origin /api so Vite proxies to backend; avoids cross-origin cookie issues in the browser.
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]

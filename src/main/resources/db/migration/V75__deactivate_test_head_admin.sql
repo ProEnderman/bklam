@@ -1,0 +1,2 @@
+-- Deactivate the V13 test HEAD_ADMIN (headadmin@gmail.com) so the primary seed user from V15 is the active duplicate HEAD_ADMIN for dev.
+UPDATE users SET is_active = false WHERE username = 'headadmin@gmail.com' AND role = 'HEAD_ADMIN';
