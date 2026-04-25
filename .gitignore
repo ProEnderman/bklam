@@ -2,6 +2,7 @@ HELP.md
 
 ### Gradle / JVM ###
 .gradle/
+.gradle-home/
 .gradle-judge/
 build/
 !gradle/wrapper/gradle-wrapper.jar
