@@ -68,9 +68,10 @@ if lsof -ti:8080 >/dev/null 2>&1; then
   echo -e "  ${RED}Не удалось освободить 8080. Выполните: lsof -ti:8080 | xargs kill -9${NC}"
   exit 1
 fi
-echo -e "${CYAN}[1/4]${NC} Запуск Java Backend (порт 8080)..."
+echo -e "${CYAN}[1/4]${NC} Запуск Java Backend (порт 8080, profile dev → DEV_DB_URL + .env через Gradle)..."
 cd "$ROOT"
-PORT=8080 ./gradlew bootRun > logs/backend.log 2>&1 &
+# Совпадает с ./gradlew devBootRun README: профиль dev, merge .env, ensureDevDatabase при необходимости
+SPRING_PROFILES_ACTIVE=dev PORT=8080 ./gradlew bootRun > logs/backend.log 2>&1 &
 PID_BACKEND=$!
 echo -e "       PID: $PID_BACKEND  |  лог: logs/backend.log"
 # Даём бэкенду время первым занять 8080 (Spring Boot поднимается 10–20 с), затем стартуем Node-сервисы
