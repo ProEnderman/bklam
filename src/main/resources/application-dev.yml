@@ -19,7 +19,8 @@ spring:
     url: ${DEV_DB_URL:jdbc:postgresql://localhost:5432/restaurant_db_dev}
   flyway:
     baseline-on-migrate: false
-    validate-on-migrate: true
+    # Dev-only: checksum validation fails after editing already-applied migrations. Override with SPRING_FLYWAY_VALIDATE_ON_MIGRATE=true when you need strict Flyway checks (prod never uses profile `dev`).
+    validate-on-migrate: false
 
 app:
   datasource:
