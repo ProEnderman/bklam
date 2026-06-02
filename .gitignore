@@ -1,5 +1,8 @@
 HELP.md
 
+### Markdown docs excluded from public GitHub ###
+*.md
+
 ### Gradle / JVM ###
 .gradle/
 .gradle-home/
