@@ -2,6 +2,20 @@
   padding: 20px;
 }
 
+.order-not-found-panel {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 24px;
+  max-width: 480px;
+}
+
+.order-not-found-panel p {
+  margin: 0;
+  color: #374151;
+  line-height: 1.5;
+}
+
 .page-header {
   display: flex;
   align-items: center;
@@ -86,9 +100,22 @@
 
 .payment-actions {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
   gap: 12px;
-  flex-wrap: wrap;
+  width: 100%;
+}
+
+.payment-tg-disabled-banner {
+  margin: 0;
+  padding: 10px 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #991b1b;
+  font-size: 14px;
+  line-height: 1.4;
+  max-width: 520px;
 }
 
 .telegram-status {

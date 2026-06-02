@@ -7,6 +7,7 @@ import com.restaurant.model.Ingredient;
 import com.restaurant.repository.IngredientRepository;
 import com.restaurant.repository.RestaurantRepository;
 import com.restaurant.security.SecurityUtils;
+import com.restaurant.util.UnicodeSubstringSearch;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -33,6 +34,7 @@ public class IngredientService {
         return SecurityUtils.getCurrentRestaurantId();
     }
     
+    @Transactional(readOnly = true)
     public Page<IngredientDto> getAllIngredients(String search, Boolean belowMin, Pageable pageable) {
         log.debug("Getting ingredients with search: {}, belowMin: {}", search, belowMin);
         
@@ -42,14 +44,18 @@ public class IngredientService {
         }
         
         Long restaurantId = getRestaurantId();
+        String trimmed = search != null ? search.trim() : "";
+        String searchEffective = trimmed.isEmpty() ? null : trimmed;
         // Преобразуем Boolean в String для native SQL запроса
         String belowMinStr = belowMin != null ? belowMin.toString() : null;
+        String searchLikePattern = UnicodeSubstringSearch.sqlLikeSubstringPattern(searchEffective);
         Page<Ingredient> ingredients = ingredientRepository.searchIngredients(
-            restaurantId, search, belowMinStr, pageable
+            restaurantId, searchLikePattern, belowMinStr, pageable
         );
         return ingredients.map(IngredientDto::fromEntity);
     }
     
+    @Transactional(readOnly = true)
     public IngredientDto getIngredientById(Long id) {
         log.debug("Getting ingredient by id: {}", id);
         Ingredient ingredient = ingredientRepository.findById(id)
@@ -78,7 +84,8 @@ public class IngredientService {
             throw new BusinessException("Restaurant ID is required");
         }
         
-        if (ingredientRepository.existsByNameIgnoreCase(restaurantId, dto.name())) {
+        if (ingredientRepository.existsByNameIgnoreCase(
+            restaurantId, UnicodeSubstringSearch.normalizeSearchKey(dto.name()))) {
             throw new BusinessException("Ingredient with name '" + dto.name() + "' already exists");
         }
         
@@ -132,8 +139,9 @@ public class IngredientService {
             throw new BusinessException("Access denied to this ingredient");
         }
         
-        if (!ingredient.getName().equalsIgnoreCase(dto.name()) &&
-            ingredientRepository.existsByNameIgnoreCase(restaurantId, dto.name())) {
+        if (!UnicodeSubstringSearch.normalizeSearchKey(ingredient.getName()).equals(UnicodeSubstringSearch.normalizeSearchKey(dto.name())) &&
+            ingredientRepository.existsByNameIgnoreCase(
+                restaurantId, UnicodeSubstringSearch.normalizeSearchKey(dto.name()))) {
             throw new BusinessException("Ingredient with name '" + dto.name() + "' already exists");
         }
         
@@ -208,6 +216,7 @@ public class IngredientService {
         }
     }
     
+    @Transactional(readOnly = true)
     public List<IngredientDto> getIngredientsBelowMinimum() {
         log.debug("Getting ingredients below minimum");
         Long restaurantId = getRestaurantId();

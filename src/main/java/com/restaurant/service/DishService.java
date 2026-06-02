@@ -14,6 +14,7 @@ import com.restaurant.repository.DishRepository;
 import com.restaurant.repository.IngredientRepository;
 import com.restaurant.repository.RestaurantRepository;
 import com.restaurant.security.SecurityUtils;
+import com.restaurant.util.UnicodeSubstringSearch;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -64,7 +65,10 @@ public class DishService {
         }
         
         Long restaurantId = getRestaurantId();
-        Page<Dish> dishes = dishRepository.searchDishes(restaurantId, search, isActive, pageable);
+        String trimmed = search != null ? search.trim() : "";
+        String searchEffective = trimmed.isEmpty() ? null : trimmed;
+        String searchLikePattern = UnicodeSubstringSearch.sqlLikeSubstringPattern(searchEffective);
+        Page<Dish> dishes = dishRepository.searchDishes(restaurantId, searchLikePattern, isActive, pageable);
         
         // Инициализируем lazy-loaded связи (category)
         for (Dish dish : dishes.getContent()) {
@@ -128,7 +132,8 @@ public class DishService {
             throw new BusinessException("Restaurant ID is required");
         }
         
-        if (dishRepository.existsByNameIgnoreCase(restaurantId, dto.name())) {
+        if (dishRepository.existsByNameIgnoreCase(
+            restaurantId, UnicodeSubstringSearch.normalizeSearchKey(dto.name()))) {
             throw new BusinessException("Dish with name '" + dto.name() + "' already exists");
         }
         
@@ -184,8 +189,9 @@ public class DishService {
             throw new BusinessException("Access denied to this dish");
         }
         
-        if (!dish.getName().equalsIgnoreCase(dto.name()) &&
-            dishRepository.existsByNameIgnoreCase(restaurantId, dto.name())) {
+        if (!UnicodeSubstringSearch.normalizeSearchKey(dish.getName()).equals(UnicodeSubstringSearch.normalizeSearchKey(dto.name())) &&
+            dishRepository.existsByNameIgnoreCase(
+                restaurantId, UnicodeSubstringSearch.normalizeSearchKey(dto.name()))) {
             throw new BusinessException("Dish with name '" + dto.name() + "' already exists");
         }
         

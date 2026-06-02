@@ -14,10 +14,11 @@ datasource db {
 // ===========================================
 
 model Restaurant {
-  id        String   @id @default(cuid())
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String   @id @default(cuid())
+  name            String
+  bankBotUsername String?  @map("bank_bot_username") // Per-restaurant bank bot (@username without @)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   users    User[]
   invoices Invoice[]

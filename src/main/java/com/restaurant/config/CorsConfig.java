@@ -26,7 +26,15 @@ public class CorsConfig {
         List<String> origins = Arrays.asList(allowedOrigins.split(","));
         config.setAllowedOrigins(origins);
         config.setAllowCredentials(true);
-        config.setAllowedHeaders(Arrays.asList("Origin", "Content-Type", "Accept", "Authorization", "X-Time-Offset-Ms"));
+        config.setAllowedHeaders(Arrays.asList(
+                "Origin",
+                "Content-Type",
+                "Accept",
+                "Authorization",
+                "X-XSRF-TOKEN",
+                "X-Time-Offset-Ms",
+                "X-Request-Id",
+                "X-Guest-Session"));
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setMaxAge(3600L); // 1 час
         

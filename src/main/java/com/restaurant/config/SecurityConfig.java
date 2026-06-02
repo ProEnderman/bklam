@@ -9,6 +9,7 @@ import com.restaurant.security.CustomUserDetailsService;
 import com.restaurant.service.ActivityLogService;
 import com.restaurant.tenant.TenantFilter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -65,7 +66,11 @@ public class SecurityConfig {
     private final ActivityLogService activityLogService;
     private final Environment environment;
     private final ObjectMapper objectMapper;
-    
+
+    /** Same property as {@link CorsConfig}: comma-separated exact origins (prod: only your HTTPS frontend). */
+    @Value("${cors.allowed-origins:http://localhost:3000,http://localhost:5173}")
+    private String corsAllowedOrigins;
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         // Strength 12 - хороший баланс между безопасностью и производительностью
@@ -187,6 +192,8 @@ public class SecurityConfig {
                 new AntPathRequestMatcher("/api/pricing/**"),
                 new AntPathRequestMatcher("/api/time-override/**"),
                 new AntPathRequestMatcher("/api/booking-notifications/**"),
+                // Demo seed: called from curl/scripts with session cookies (see scripts/seed-demo-orders.sh)
+                new AntPathRequestMatcher("/api/demo/**", "POST"),
         };
     }
 
@@ -202,15 +209,21 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of(
-            "http://localhost:3000",
-            "http://localhost:5173",
-            "https://*.trycloudflare.com",
-            "https://*.ngrok-free.app",
-            "https://*.ngrok.io"
-        ));
+        List<String> origins = Arrays.stream(corsAllowedOrigins.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
+        configuration.setAllowedOrigins(origins);
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("X-XSRF-TOKEN", "Content-Type", "Authorization", "*"));
+        configuration.setAllowedHeaders(Arrays.asList(
+                "Origin",
+                "Content-Type",
+                "Accept",
+                "Authorization",
+                "X-XSRF-TOKEN",
+                "X-Time-Offset-Ms",
+                "X-Request-Id",
+                "X-Guest-Session"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 

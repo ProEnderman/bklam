@@ -30,9 +30,10 @@ public class AuthController {
     @Operation(summary = "Запрос кода подтверждения", description = "Отправляет код подтверждения на email после проверки пароля. Возвращает challengeId для последующей верификации.")
     @PostMapping("/login/request-code")
     public ResponseEntity<RequestCodeResponse> requestVerificationCode(
-        @Valid @RequestBody LoginRequest request
+        @Valid @RequestBody LoginRequest request,
+        HttpServletRequest httpRequest
     ) {
-        String challengeId = authService.requestVerificationCode(request);
+        String challengeId = authService.requestVerificationCode(request, httpRequest);
         return ResponseEntity.ok(new RequestCodeResponse(
             challengeId,
             "Verification code sent to your email"
@@ -43,12 +44,14 @@ public class AuthController {
     @PostMapping("/login/verify")
     public ResponseEntity<AuthResponse> verifyCodeAndLogin(
         @Valid @RequestBody VerifyCodeWithChallengeRequest request,
+        HttpServletRequest httpRequest,
         HttpServletResponse response
     ) {
         AuthResponse authResponse = authService.verifyCodeAndLogin(
             request.challengeId(),
             request.code(),
-            response
+            response,
+            httpRequest
         );
         return ResponseEntity.ok(authResponse);
     }

@@ -1,5 +1,6 @@
 package com.restaurant.model;
 
+import com.restaurant.util.UnicodeSubstringSearch;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -24,7 +25,11 @@ public class Ingredient {
     @NotBlank(message = "Name is required")
     @Column(nullable = false)
     private String name;
-    
+
+    /** NFC + lowercase (ROOT) — used for SQL substring search regardless of DB locale */
+    @Column(name = "name_search_key", columnDefinition = "text")
+    private String nameSearchKey;
+
     @NotNull(message = "Unit is required")
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -52,6 +57,18 @@ public class Ingredient {
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
+        refreshNameSearchKey();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        refreshNameSearchKey();
+    }
+
+    private void refreshNameSearchKey() {
+        if (name != null) {
+            nameSearchKey = UnicodeSubstringSearch.normalizeSearchKey(name);
+        }
     }
     
     public Long getRestaurantId() {

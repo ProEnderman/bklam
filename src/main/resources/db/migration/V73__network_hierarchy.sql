@@ -92,12 +92,15 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS location_id BIGINT REFERENCES locatio
 CREATE INDEX IF NOT EXISTS idx_users_location_id ON users(location_id);
 
 -- 9) Backfill users.location_id from restaurant_id via locations.legacy_restaurant_id
+-- Flyway runs without tenant session vars; RLS (V67+) would block this UPDATE. Owner may toggle RLS.
+ALTER TABLE users DISABLE ROW LEVEL SECURITY;
 UPDATE users u
 SET location_id = l.id
 FROM locations l
 WHERE l.legacy_restaurant_id = u.restaurant_id
   AND u.restaurant_id IS NOT NULL
   AND u.location_id IS NULL;
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 
 -- Do NOT add NOT NULL on users.location_id: HEAD_ADMIN has no location/restaurant.
 -- Do NOT drop restaurants or users.restaurant_id in this migration.

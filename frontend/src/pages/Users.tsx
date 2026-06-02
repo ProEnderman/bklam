@@ -81,30 +81,69 @@ const PERMISSIONS_BY_CATEGORY = PERMISSION_OPTIONS.reduce(
 function PermissionGrid({
   selected,
   onToggle,
+  showGrantedOnlyFilter = false,
 }: {
   selected: UserPermission[]
   onToggle: (p: UserPermission) => void
+  showGrantedOnlyFilter?: boolean
 }) {
+  const [onlyGranted, setOnlyGranted] = useState(false)
+
+  const categories = Object.entries(PERMISSIONS_BY_CATEGORY)
+    .map(([category, perms]) => {
+      const visible = onlyGranted && showGrantedOnlyFilter ? perms.filter((p) => selected.includes(p.value)) : perms
+      return { category, perms: visible }
+    })
+    .filter(({ perms }) => perms.length > 0)
+
   return (
-    <div className="permissions-container">
-      {Object.entries(PERMISSIONS_BY_CATEGORY).map(([category, perms]) => (
-        <div key={category} className="permission-category">
-          <h4 className="permission-category-title">{category}</h4>
-          <div className="permission-checkboxes">
-            {perms.map((perm) => (
-              <label key={perm.value} className="permission-checkbox">
-                <input
-                  type="checkbox"
-                  checked={selected.includes(perm.value)}
-                  onChange={() => onToggle(perm.value)}
-                />
-                <span>{perm.label}</span>
-              </label>
-            ))}
-          </div>
+    <>
+      {showGrantedOnlyFilter && (
+        <div className="permission-grid-toolbar">
+          <button
+            type="button"
+            className={!onlyGranted ? 'active' : ''}
+            onClick={() => setOnlyGranted(false)}
+          >
+            Все действия
+          </button>
+          <button
+            type="button"
+            className={onlyGranted ? 'active' : ''}
+            onClick={() => setOnlyGranted(true)}
+          >
+            Только разрешённые
+          </button>
         </div>
-      ))}
-    </div>
+      )}
+      <div className="permissions-container">
+        {categories.length === 0 ? (
+          <p className="users-hint" style={{ margin: 0 }}>
+            {onlyGranted
+              ? 'В шаблоне пока нет разрешённых действий. Переключитесь на «Все действия», чтобы отметить права.'
+              : 'Нет доступных действий.'}
+          </p>
+        ) : (
+          categories.map(({ category, perms }) => (
+            <div key={category} className="permission-category">
+              <h4 className="permission-category-title">{category}</h4>
+              <div className="permission-checkboxes">
+                {perms.map((perm) => (
+                  <label key={perm.value} className="permission-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={selected.includes(perm.value)}
+                      onChange={() => onToggle(perm.value)}
+                    />
+                    <span>{perm.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </>
   )
 }
 
@@ -634,7 +673,11 @@ export default function Users() {
           <label style={{ fontWeight: 'bold', marginBottom: '10px', display: 'block' }}>
             Разрешения в шаблоне
           </label>
-          <PermissionGrid selected={templateForm.permissions} onToggle={toggleTemplatePermission} />
+          <PermissionGrid
+            selected={templateForm.permissions}
+            onToggle={toggleTemplatePermission}
+            showGrantedOnlyFilter
+          />
         </div>
         <div className="modal-actions">
           <button

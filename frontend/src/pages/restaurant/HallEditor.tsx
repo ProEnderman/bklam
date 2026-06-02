@@ -289,6 +289,28 @@ export default function HallEditor() {
   const [eraserPos, setEraserPos] = useState<{ x: number; y: number } | null>(null)
   const eraserStartedRef = useRef(false)
   const justMovedRef = useRef(false)
+  /** Ожидание движения мыши перед началом штриха декора (клик по пустому ≠ рисование). */
+  const paintStrokePendingRef = useRef(false)
+  const handleGridMouseUpRef = useRef<() => void>(() => {})
+
+  const hasUnsavedChanges = useCallback(() => {
+    return (
+      dirtyAddsRef.current.size > 0 ||
+      dirtyUpdatesRef.current.size > 0 ||
+      dirtyRemovesRef.current.size > 0
+    )
+  }, [])
+
+  const resetObjectPaintStroke = useCallback(() => {
+    paintStrokePendingRef.current = false
+    setIsPaintingObjects(false)
+    paintedObjectCellsRef.current = new Set()
+    setPaintedObjectCells(new Set())
+    lastPaintCoordRef.current = null
+    paintStartCoordRef.current = null
+    setEraserPos(null)
+    eraserStartedRef.current = false
+  }, [])
   
   // Маппинг временных ID на серверные (для перетаскивания новых элементов)
   const tempToServerIdMapRef = useRef<Map<number, number>>(new Map())
@@ -358,6 +380,12 @@ export default function HallEditor() {
     try {
       const data = await hallService.getView()
       setView(data)
+      setDirtyAdds(new Map())
+      setDirtyUpdates(new Map())
+      setDirtyRemoves(new Set())
+      dirtyAddsRef.current = new Map()
+      dirtyUpdatesRef.current = new Map()
+      dirtyRemovesRef.current = new Set()
       
       // Сохраняем начальное состояние в историю при загрузке карты
       // Это позволяет отменить первое действие
@@ -441,6 +469,22 @@ export default function HallEditor() {
     // Builtins go first, then uploaded
     return [...defaultBuiltinAssets, ...apiAssets] as HallAsset[]
   }, [view?.assets])
+
+  /** Тип размещения: в режиме «Как у ассета» без выбранного спрайта — null (клик ничего не ставит). */
+  const getActivePlacingType = useCallback((): HallPlacedItem['type'] | null => {
+    const selectedAsset = selectedAssetId ? assets.find((a) => a.id === selectedAssetId) : null
+    if (placingTypeOverride === 'ASSET') {
+      return selectedAsset?.type ?? null
+    }
+    if (placingTypeOverride === 'TABLE') {
+      return 'TABLE'
+    }
+    if (placingTypeOverride === 'DECOR') {
+      return 'DECOR'
+    }
+    return null
+  }, [selectedAssetId, assets, placingTypeOverride])
+
   const tables = view?.tables || []
 
   // Центрируем карту при первой загрузке (только один раз)
@@ -864,9 +908,8 @@ export default function HallEditor() {
     const clientId = -nextClientIdRef.current++
     const itemWithClientId = { ...item, id: clientId }
     setDirtyAdds((prev) => new Map(prev).set(clientId, itemWithClientId))
-    flushPatch(false)
     return clientId
-  }, [flushPatch])
+  }, [])
 
   const updateItem = useCallback((id: number, update: Partial<HallPlacedItem>) => {
     // Резолвим актуальный ID: если это временный ID, проверяем маппинг
@@ -899,8 +942,7 @@ export default function HallEditor() {
         })
       }
       // Если элемент ещё в dirtyAdds и маппинга нет - не добавляем в dirtyUpdates,
-      // так как элемент будет отправлен с обновлёнными данными при следующем flush
-      flushPatch(false)
+      // так как элемент будет отправлен с обновлёнными данными при «Подтвердить изменения»
       return
     }
     
@@ -910,8 +952,7 @@ export default function HallEditor() {
       next.set(actualId, { ...existing, ...update })
       return next
     })
-    flushPatch(false)
-  }, [flushPatch])
+  }, [])
 
   const removeItem = useCallback((id: number) => {
     // Если это новый item (clientId < 0), удаляем из dirtyAdds
@@ -925,8 +966,7 @@ export default function HallEditor() {
       // Иначе добавляем в dirtyRemoves
       setDirtyRemoves((prev) => new Set(prev).add(id))
     }
-    flushPatch(false)
-  }, [flushPatch])
+  }, [])
 
   // Запрещённая зона стола: стол + «ореол» 1 клетка (вплотную ставить нельзя)
   // OPTIMIZED: Uses spatial index instead of O(n) scan
@@ -2002,8 +2042,6 @@ export default function HallEditor() {
         x: nextX,
         y: nextY,
       })
-      // Немедленная отправка при повороте
-      flushPatch(true)
         return // Важно: выходим после обработки поворота
     }
     }
@@ -2068,13 +2106,7 @@ export default function HallEditor() {
         setSelectedTableId(null)
       }
 
-      const selectedAsset = selectedAssetId ? assets.find((a) => a.id === selectedAssetId) : null
-      const type: HallPlacedItem['type'] | null =
-        placingTypeOverride === 'ASSET'
-          ? selectedAsset?.type ?? null // без ассета ничего не рисуем
-          : placingTypeOverride === 'TABLE'
-            ? 'TABLE'
-            : 'DECOR'
+      const type = getActivePlacingType()
 
       if (toolMode === 'ERASE') {
         // стартуем путь ластика: сразу стираем и показываем одну ячейку-позицию
@@ -2088,16 +2120,12 @@ export default function HallEditor() {
         return
       }
 
-      // DRAW: стартуем заливку только для декора, для TABLE остаётся клик + модалка
-      // но не даём рисовать в запретной зоне вокруг столов
-      if (type === 'DECOR' && toolMode === 'DRAW') {
+      // DRAW: декор рисуем только при перетаскивании (mousemove), не при одиночном клике
+      if (type === 'DECOR' && toolMode === 'DRAW' && !hasUnsavedChanges()) {
         if (isCellTooCloseToAnyTable(coords.x, coords.y)) return
-        setIsPaintingObjects(true)
-        const initialCells = new Set([`${coords.x},${coords.y}`])
-        paintedObjectCellsRef.current = initialCells
-        setPaintedObjectCells(initialCells)
+        paintStrokePendingRef.current = true
         lastPaintCoordRef.current = coords
-        paintStartCoordRef.current = coords // Для Shift-привязки
+        paintStartCoordRef.current = coords
       }
       return
     }
@@ -2245,6 +2273,22 @@ export default function HallEditor() {
         return
       }
 
+      // Начать штрих декора только после движения мыши (клик по пустому снимает выделение, не рисует)
+      if (paintStrokePendingRef.current && toolMode === 'DRAW' && (e.buttons & 1) === 1) {
+        const strokeType = getActivePlacingType()
+        const start = paintStartCoordRef.current
+        if (strokeType === 'DECOR' && start && (coords.x !== start.x || coords.y !== start.y)) {
+          paintStrokePendingRef.current = false
+          if (!isPaintingObjects) {
+            setIsPaintingObjects(true)
+            const initialCells = new Set([`${start.x},${start.y}`])
+            paintedObjectCellsRef.current = initialCells
+            setPaintedObjectCells(initialCells)
+            lastPaintCoordRef.current = start
+          }
+        }
+      }
+
       if (isPaintingObjects) {
         const start = paintStartCoordRef.current || coords
         const last = lastPaintCoordRef.current || coords
@@ -2374,8 +2418,8 @@ export default function HallEditor() {
           console.log(`[HallEditor] handleGridMouseUp: resolved temp ID to server ID ${id}`)
         }
         
-        // Используем актуальные данные из items (merged)
-        const targetItem = items.find((it) => it.id === id)
+        // Используем актуальные данные из itemsRef (merged, без устаревшего closure)
+        const targetItem = itemsRef.current.find((it) => it.id === id)
         if (targetItem) {
           // Валидация: проверяем, что объект помещается в границы карты
           if (x < 0 || y < 0 || x + targetItem.w > map.gridWidth || y + targetItem.h > map.gridHeight) {
@@ -2429,9 +2473,7 @@ export default function HallEditor() {
           // Сбрасываем флаг через небольшую задержку
           setTimeout(() => {
             justMovedRef.current = false
-          }, 100)
-          // Немедленная отправка при завершении перетаскивания
-          flushPatch(true)
+          }, 300)
           }
         }
         setDraggingItemId(null)
@@ -2442,12 +2484,7 @@ export default function HallEditor() {
       }
       // Завершение работы ластика: отправляем все удаления
       if (toolMode === 'ERASE' && isPaintingObjects && map && view) {
-        // Все удаления уже в dirtyRemoves через eraseAtCell
-        setIsPaintingObjects(false)
-        setPaintedObjectCells(new Set())
-        setEraserPos(null)
-        // Немедленная отправка при завершении стирания
-        flushPatch(true)
+        resetObjectPaintStroke()
         return
       }
       
@@ -2455,14 +2492,9 @@ export default function HallEditor() {
         if (toolMode !== 'ERASE') {
           // Рисование декора
           const selectedAsset = selectedAssetId ? assets.find((a) => a.id === selectedAssetId) : null
-          const type: HallPlacedItem['type'] | null =
-            placingTypeOverride === 'ASSET'
-              ? selectedAsset?.type ?? null
-              : placingTypeOverride === 'TABLE'
-                ? 'TABLE'
-                : 'DECOR'
+          const type = getActivePlacingType()
           if (type !== 'DECOR') {
-            // в этом блоке рисуем только декор
+            resetObjectPaintStroke()
             return
           }
           const baseW = 1
@@ -2552,23 +2584,10 @@ export default function HallEditor() {
                 locked: false,
               })
             })
-            
-            // Немедленная отправка при завершении рисования
-            flushPatch(true)
           }
         }
       }
-      setIsPaintingObjects(false)
-      paintedObjectCellsRef.current = new Set()
-      setPaintedObjectCells(new Set())
-      lastPaintCoordRef.current = null
-      paintStartCoordRef.current = null
-      setEraserPos(null)
-      eraserStartedRef.current = false
-      // Flush на mouseup для немедленной отправки накопленных изменений
-      if (dirtyAdds.size > 0 || dirtyUpdates.size > 0 || dirtyRemoves.size > 0) {
-        flushPatch(true)
-      }
+      resetObjectPaintStroke()
       return
     }
     if (mode !== 'ZONES') return
@@ -2583,6 +2602,18 @@ export default function HallEditor() {
       setShowZoneModal(true)
     }
   }
+
+  handleGridMouseUpRef.current = handleGridMouseUp
+
+  useEffect(() => {
+    const onWindowMouseUp = () => {
+      if (draggingItemIdRef.current) {
+        handleGridMouseUpRef.current()
+      }
+    }
+    window.addEventListener('mouseup', onWindowMouseUp)
+    return () => window.removeEventListener('mouseup', onWindowMouseUp)
+  }, [])
 
   const handleGridClick = async (e: React.MouseEvent) => {
     if (!map || !view) return
@@ -2660,15 +2691,18 @@ export default function HallEditor() {
     setSelectedItemId(null)
     setSelectedTableId(null)
 
+    // Есть несохранённые правки — только сняли выделение, на сервер не отправляем
+    if (hasUnsavedChanges()) {
+      return
+    }
+
     const selectedAsset = selectedAssetId ? assets.find((a) => a.id === selectedAssetId) : null
-    const type: HallPlacedItem['type'] | null =
-      placingTypeOverride === 'ASSET'
-        ? selectedAsset?.type ?? null
-        : placingTypeOverride === 'TABLE'
-          ? 'TABLE'
-          : 'DECOR'
+    const type = getActivePlacingType()
     if (!type) {
-      // Нет выбранного ассета и тип не задан явно — ничего не ставим
+      return
+    }
+    // Декор рисуется только перетаскиванием (mousedown + mousemove), не одиночным кликом
+    if (type === 'DECOR') {
       return
     }
     const baseW =
@@ -2731,8 +2765,6 @@ export default function HallEditor() {
     redoHistoryRef.current = []
 
     addItem(next)
-    // Немедленная отправка при клике (одиночное размещение)
-    flushPatch(true)
   }
 
   const handleSaveZone = async () => {
@@ -2877,8 +2909,6 @@ export default function HallEditor() {
       redoHistoryRef.current = []
       
       addItem(next)
-      // Немедленная отправка при размещении стола
-      flushPatch(true)
       setShowTableModal(false)
       pendingTablePlacementRef.current = null
     } catch (e: any) {
@@ -2916,7 +2946,6 @@ export default function HallEditor() {
       setRedoHistory([]) // Очищаем redo при новом действии
       redoHistoryRef.current = []
       removeItem(it.id)
-      flushPatch(true)
     }
 
     const handleItemMouseDown = (e: React.MouseEvent) => {
@@ -3070,6 +3099,11 @@ export default function HallEditor() {
                 style={{
                   opacity: dirtyAdds.size > 0 || dirtyUpdates.size > 0 || dirtyRemoves.size > 0 ? 1 : 0.6,
                 }}
+                title={
+                  dirtyAdds.size > 0 || dirtyUpdates.size > 0 || dirtyRemoves.size > 0
+                    ? 'Отправить все несохранённые изменения на сервер'
+                    : 'Нет несохранённых изменений'
+                }
                 onClick={async () => {
                   try {
                     await flushPatch(true)
@@ -3170,7 +3204,7 @@ export default function HallEditor() {
                   <input type="number" value={layer} onChange={(e) => setLayer(parseInt(e.target.value || '0'))} />
                 </div>
                 {/* Размер клеток теперь задаётся только в момент создания спрайта */}
-                <div className="hall-hint">Клик по сетке размещает объект. TABLE попросит номер/вместимость.</div>
+                <div className="hall-hint">Клик по пустой клетке снимает выделение. Размещение — при выбранном спрайте или типе TABLE. Декор (DECOR) — перетаскиванием. Сохранение — «Подтвердить изменения».</div>
               </div>
               <div className="hall-sidebar-block">
                 <div className="hall-sidebar-title">Размер карты</div>
@@ -3439,9 +3473,9 @@ export default function HallEditor() {
               handleGridMouseUp()
             }}
             onMouseLeave={() => {
-              // Если курсор вышел за пределы карты, считаем это отпусканием мыши:
-              // дорисовываем и сохраняем всё, что было нарисовано.
-              if (isPaintingZone || isPaintingObjects) {
+              paintStrokePendingRef.current = false
+              // Завершить перетаскивание / рисование, если курсор ушёл с карты (иначе позиция «зависает» в превью).
+              if (draggingItemIdRef.current || isPaintingZone || isPaintingObjects) {
                 handleGridMouseUp()
               }
               if (isPanningRef.current) {

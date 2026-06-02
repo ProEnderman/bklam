@@ -2,6 +2,7 @@ package com.restaurant.repository;
 
 import com.restaurant.model.Order;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -84,6 +85,22 @@ public interface OrderRepository extends JpaRepository<Order, Long>, OrderReposi
         @Param("restaurantId") Long restaurantId,
         @Param("fromDate") LocalDate fromDate,
         @Param("toDate") LocalDate toDate
+    );
+
+    /** Demo seed / backfill: {@code Order.createdAt} is {@code updatable = false} in JPA. */
+    @Modifying
+    @Query(value = """
+        UPDATE orders
+        SET created_at = :createdAt,
+            closed_at = :closedAt,
+            paid_at = :paidAt
+        WHERE id = :id
+        """, nativeQuery = true)
+    int updateOrderTimestamps(
+        @Param("id") Long id,
+        @Param("createdAt") LocalDateTime createdAt,
+        @Param("closedAt") LocalDateTime closedAt,
+        @Param("paidAt") LocalDateTime paidAt
     );
 }
 

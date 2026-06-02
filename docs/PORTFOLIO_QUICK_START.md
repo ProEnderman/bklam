@@ -14,7 +14,7 @@
 
 ## Сиды
 
-После Flyway: ресторан *Test Restaurant*, пользователи из `V13` (в т.ч. `admin@gmail.com` / `admin123`), демо-меню из `V90` (категория `Demo`, блюда `Demo Burger`, `Demo Soup`).
+После Flyway: ресторан *Test Restaurant*, сиды из `V13` (seed `ADMIN` деактивирован в `V93` — см. `TEST_ACCOUNTS.md`), демо-меню из `V90` (категория `Demo`, блюда `Demo Burger`, `Demo Soup`).
 
 ## Скрипты
 

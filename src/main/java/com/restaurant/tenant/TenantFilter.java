@@ -68,6 +68,21 @@ public class TenantFilter extends OncePerRequestFilter {
             boolean headAdmin = isHeadAdmin();
             boolean allowedNoTenant = (platform && headAdmin) || internalForecast;
 
+            // Platform HEAD_ADMIN: principal has no restaurant; RLS on users still needs app.current_restaurant_id
+            // for INSERT (e.g. POST .../restaurants/{id}/admins). Infer tenant from path or ?restaurantId=.
+            if (platform && headAdmin && TenantContext.getRestaurantId() == null) {
+                Long pathRid = parseRestaurantIdFromPlatformRestaurantsPath(uri);
+                Long queryRid = parseRestaurantIdParam(req);
+                Long requested = pathRid != null ? pathRid : queryRid;
+                if (requested != null) {
+                    Long locId = locationRepository.findByLegacyRestaurant_Id(requested)
+                            .map(Location::getId)
+                            .orElse(null);
+                    TenantContext.setLocationAndRestaurant(locId, requested);
+                    tenantId = TenantContext.get();
+                }
+            }
+
             if (!allowedNoTenant && tenantId == null && headAdmin) {
                 Long requested = parseRestaurantIdParam(req);
                 if (requested != null) {
@@ -84,6 +99,15 @@ public class TenantFilter extends OncePerRequestFilter {
                     }
                     allowedNoTenant = true;
                 }
+            }
+
+            // Ingredients (and most tenant RLS) use app.current_restaurant_id only — refuse requests where we
+            // still have no legacy restaurant after JWT + location resolution (avoids silent empty lists / bulk INSERT failures).
+            if (!allowedNoTenant && !internalForecast && TenantContext.getRestaurantId() == null && !headAdmin) {
+                log.warn("Missing legacy restaurant in tenant context for {}; locationId={}, user needs location→legacy mapping or users.restaurant_id",
+                        uri, TenantContext.getLocationId());
+                res.sendError(SC_UNAUTHORIZED, "Missing restaurant tenant");
+                return;
             }
 
             if (!allowedNoTenant && tenantId == null) {
@@ -114,6 +138,33 @@ public class TenantFilter extends OncePerRequestFilter {
         try { return Long.parseLong(param); } catch (NumberFormatException e) { return null; }
     }
 
+    /**
+     * {@code /api/platform/restaurants/{id}} or {@code /api/platform/restaurants/{id}/admins} → legacy restaurant id.
+     */
+    private Long parseRestaurantIdFromPlatformRestaurantsPath(String uri) {
+        if (uri == null) {
+            return null;
+        }
+        final String prefix = "/api/platform/restaurants/";
+        if (!uri.startsWith(prefix)) {
+            return null;
+        }
+        String tail = uri.substring(prefix.length());
+        if (tail.isEmpty()) {
+            return null;
+        }
+        int slash = tail.indexOf('/');
+        String idStr = slash == -1 ? tail : tail.substring(0, slash);
+        if (idStr.isEmpty() || !idStr.chars().allMatch(Character::isDigit)) {
+            return null;
+        }
+        try {
+            return Long.parseLong(idStr);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
     private record TenantIds(Long locationId, Long restaurantId) {}
 
     private TenantIds extractTenantFromAuth() {
@@ -128,10 +179,13 @@ public class TenantFilter extends OncePerRequestFilter {
                     .map(Location::getId)
                     .orElse(null);
         }
-        if (locationId != null && restaurantId == null) {
-            restaurantId = locationRepository.findById(locationId)
-                    .map(Location::getLegacyRestaurantId)
-                    .orElse(null);
+        // Location is the canonical tenant key: always derive legacy restaurant from it when present,
+        // so JWT cannot carry a stale restaurantId that disagrees with RLS-visible rows.
+        if (locationId != null) {
+            Long resolvedRestaurantId = locationRepository.findLegacyRestaurantIdByLocationId(locationId).orElse(null);
+            if (resolvedRestaurantId != null) {
+                restaurantId = resolvedRestaurantId;
+            }
         }
         if (restaurantId == null) {
             restaurantId = principal.getRestaurantId();

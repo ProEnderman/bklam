@@ -113,6 +113,9 @@ security:
 # --- Multi-tenant JDBC ---
 # Tenant pool: used by JPA + TenantAwareDataSource (SET LOCAL app.current_restaurant_id / app.location_id for RLS).
 # Platform pool: optional bypass role for cross-tenant jobs (see MultiDataSourceConfig); use only where intended.
+# Also used to load users for JWT (CustomUserDetailsService) before TenantFilter sets RLS session vars — that query
+# must see the correct users.restaurant_id / location_id rows, so use a role that is not restricted by users RLS
+# (dedicated app_platform user), or the same superuser as dev.
 #
 # Production MUST NOT use for APP_TENANT_DB_*:
 #   - PostgreSQL superuser (bypasses RLS regardless of policies)
@@ -171,6 +174,12 @@ forecast:
     issuer: "rms-backend"
     secret: ${FORECAST_INTERNAL_JWT_SECRET_B64:}
     ttl_minutes: 5
+
+demo:
+  order-seed:
+    enabled: ${DEMO_ORDER_SEED_ENABLED:false}
+  booking-seed:
+    enabled: ${DEMO_BOOKING_SEED_ENABLED:false}
 
 telegram:
   webhook:

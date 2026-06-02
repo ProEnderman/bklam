@@ -94,3 +94,18 @@
   padding-top: 20px;
   border-top: 1px solid #dee2e6;
 }
+
+.ingredients-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 12px 0;
+}
+
+.ingredients-pagination span {
+  color: #555;
+  font-size: 14px;
+}

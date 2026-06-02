@@ -31,8 +31,28 @@ function formatModel(family: string): string {
   return family
 }
 
+function effectiveMonthlyTotal(
+  monthly: MonthlyForecastResponse | null,
+  progress: MonthProgressResponse | null,
+): number {
+  if (monthly && monthly.predicted_total > 0) return monthly.predicted_total
+  if (progress?.snapshot_total && progress.snapshot_total > 0) return progress.snapshot_total
+  if (progress?.revised_total && progress.revised_total > 0) return progress.revised_total
+  return monthly?.predicted_total ?? 0
+}
+
+/** Month rollup has real forecast bounds (not empty snapshot with lo=hi=0). */
+function hasMeaningfulMonthlyCi(monthly: MonthlyForecastResponse | null): boolean {
+  if (!monthly || monthly.coverage_ratio <= 0) return false
+  const lo = monthly.lower_total
+  const hi = monthly.upper_total
+  if (lo == null || hi == null) return false
+  if (lo === 0 && hi === 0 && monthly.predicted_total > 0) return false
+  return hi > lo || (lo > 0 && hi > 0)
+}
+
 export default function ExecutiveLayer() {
-  const { data } = useAnalytics()
+  const { data, dateFrom, dateTo } = useAnalytics()
 
   // Monthly forecast state (primary)
   const [monthlyRevenue, setMonthlyRevenue] = useState<MonthlyForecastResponse | null>(null)
@@ -54,20 +74,28 @@ export default function ExecutiveLayer() {
   const [mlAvailable, setMlAvailable] = useState<boolean | null>(null)
   const [chartView, setChartView] = useState<ChartView>('actual')
 
-  // Current and next month
-  const now = useMemo(() => new Date(), [])
-  const curYear = now.getFullYear()
-  const curMonth = now.getMonth() + 1
+  // Month for ML forecast: end of analytics filter, else current calendar month
+  const { forecastYear: curYear, forecastMonth: curMonth } = useMemo(() => {
+    const ref = dateTo || dateFrom
+    if (ref) {
+      const d = new Date(`${ref}T12:00:00`)
+      if (!Number.isNaN(d.getTime())) {
+        return { forecastYear: d.getFullYear(), forecastMonth: d.getMonth() + 1 }
+      }
+    }
+    const now = new Date()
+    return { forecastYear: now.getFullYear(), forecastMonth: now.getMonth() + 1 }
+  }, [dateFrom, dateTo])
 
-  // Load monthly forecasts on mount (primary view)
+  // Load monthly forecasts when filter month changes
   const loadMonthly = useCallback(async () => {
     setMonthlyLoading(true)
     setMonthlyError(null)
     try {
       const [updatingResp, rev, bk] = await Promise.all([
         forecastService.getUpdating().catch(() => ({ updating: false })),
-        forecastService.getMonthlyForecast('revenue', curYear, curMonth),
-        forecastService.getMonthlyForecast('bookings', curYear, curMonth, { breakdown: 'activity' }),
+        forecastService.getMonthlyForecast('revenue', curYear, curMonth, { forceRefresh: true }),
+        forecastService.getMonthlyForecast('bookings', curYear, curMonth, { forceRefresh: true, breakdown: 'activity' }),
       ])
       setUpdatingFromServer(updatingResp?.updating ?? false)
 
@@ -358,14 +386,14 @@ export default function ExecutiveLayer() {
               {monthlyBookings ? (
                 <>
                   <div style={{ fontSize: '28px', fontWeight: 700, color: '#111827', marginBottom: '4px' }}>
-                    {fmt(Math.round(monthlyBookings.predicted_total))}
+                    {fmt(Math.round(effectiveMonthlyTotal(monthlyBookings, bkProgress)))}
                   </div>
 
-                  {monthlyBookings.lower_total != null && monthlyBookings.upper_total != null && (
+                  {hasMeaningfulMonthlyCi(monthlyBookings) && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '10px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#6b7280' }}>
-                        <span>{fmt(Math.round(monthlyBookings.lower_total))}</span>
-                        <span>{fmt(Math.round(monthlyBookings.upper_total))}</span>
+                        <span>{fmt(Math.round(monthlyBookings.lower_total!))}</span>
+                        <span>{fmt(Math.round(monthlyBookings.upper_total!))}</span>
                       </div>
                       <div style={{ position: 'relative', height: '6px', background: '#e5e7eb', borderRadius: '3px' }}>
                         <div style={{
@@ -380,52 +408,14 @@ export default function ExecutiveLayer() {
                     </div>
                   )}
 
-                  {/* Per-activity breakdown — rescale to match displayed total */}
-                  {monthlyBookings.by_activity && monthlyBookings.by_activity.length > 0 && (() => {
-                    const raw = monthlyBookings.by_activity!
-                    const rawSum = raw.reduce((s, a) => s + a.predicted_total, 0)
-                    const target = monthlyBookings.predicted_total
-                    const scale = rawSum > 0 ? target / rawSum : 1
-                    const scaled = raw.map(a => ({ ...a, display: Math.round(a.predicted_total * scale) }))
-                    // Adjust largest item so displayed values sum exactly to the total
-                    const displaySum = scaled.reduce((s, a) => s + a.display, 0)
-                    const diff = Math.round(target) - displaySum
-                    if (diff !== 0 && scaled.length > 0) scaled[0].display += diff
-
-                    const maxVal = Math.max(...scaled.map(a => a.display), 1)
-                    return (
-                      <div style={{ marginTop: '14px' }}>
-                        <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '8px' }}>
-                          По типам
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                          {scaled.map(a => (
-                            <div key={a.segment_id} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <div style={{ width: '90px', fontSize: '11px', color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }}
-                                   title={a.segment_name}>
-                                {a.segment_name}
-                              </div>
-                              <div style={{ flex: 1, position: 'relative', height: '14px', background: '#e5e7eb', borderRadius: '3px' }}>
-                                <div style={{
-                                  height: '100%', borderRadius: '3px',
-                                  background: a.segment_id === '__other' ? '#d1d5db' : '#10b981',
-                                  width: `${Math.max((a.display / maxVal) * 100, 2)}%`,
-                                  transition: 'width 0.3s ease',
-                                }} />
-                              </div>
-                              <div style={{ width: '36px', fontSize: '11px', fontWeight: 600, color: '#111827', textAlign: 'right', flexShrink: 0 }}>
-                                {fmt(a.display)}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )
-                  })()}
-
                   <div style={{ marginTop: '12px', fontSize: '11px', color: '#6b7280' }}>
                     Покрытие: <span style={{ fontWeight: 600 }}>{monthlyBookings.covered_days}/{monthlyBookings.total_days} дн.</span>
                     {' '}({(monthlyBookings.coverage_ratio * 100).toFixed(0)}%)
+                    {monthlyBookings.coverage_ratio <= 0 && effectiveMonthlyTotal(monthlyBookings, bkProgress) > 0 && (
+                      <span style={{ display: 'block', marginTop: '4px', color: '#9ca3af', fontSize: '10px' }}>
+                        Итог из дневного трекера; для ДИ переобучите прогноз (train bookings)
+                      </span>
+                    )}
                   </div>
                   <div style={{ marginTop: '8px', fontSize: '10px', color: '#9ca3af' }}>
                     Модель: {formatModel(monthlyBookings.model_family_used)}
@@ -571,7 +561,7 @@ export default function ExecutiveLayer() {
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
                   <span style={{ color: '#6b7280' }}>Прогноз модели на месяц</span>
-                  <span style={{ fontWeight: 600, color: '#111827' }}>{fmt(Math.round(bkProgress.snapshot_total))}</span>
+                  <span style={{ fontWeight: 600, color: '#111827' }}>{fmt(Math.round(effectiveMonthlyTotal(monthlyBookings, bkProgress)))}</span>
                 </div>
 
                 {/* Pace badge */}

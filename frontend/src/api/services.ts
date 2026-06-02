@@ -20,6 +20,7 @@ import type {
   ProblemIngredientDto,
   RecipeItem,
   ExcelUploadResponse,
+  ResolveIngredientMissingRequest,
   ResolveUnitMismatchRequest,
   TariffPlan,
   TariffRule,
@@ -50,17 +51,91 @@ import type {
   CalendarUpdateResponse,
   Unit,
 } from './types'
+import { retryOnRateLimit } from '../utils/apiRetry'
+
+/** Одна страница ответа Spring Data для `/ingredients`. */
+export type IngredientsPageResult = {
+  content: Ingredient[]
+  totalElements: number
+  totalPages: number
+  number: number
+  size: number
+}
+
+async function fetchIngredientsPageRaw(
+  page: number,
+  size: number,
+  search?: string,
+  belowMin?: boolean
+): Promise<{
+  content?: Ingredient[]
+  last?: boolean
+  empty?: boolean
+  number?: number
+  totalPages?: number
+  totalElements?: number
+  size?: number
+}> {
+  const params = new URLSearchParams()
+  if (search) params.append('search', search)
+  if (belowMin) params.append('belowMin', 'true')
+  params.append('page', String(page))
+  params.append('size', String(size))
+
+  const response = await retryOnRateLimit(
+    () =>
+      client.get<{
+        content?: Ingredient[]
+        last?: boolean
+        empty?: boolean
+        number?: number
+        totalPages?: number
+        totalElements?: number
+        size?: number
+      }>(`/ingredients?${params}`),
+    10,
+    450
+  )
+  return response.data
+}
+
+/** Проверка blob-ответа: при ошибке API часто отдаёт JSON с тем же status 200. */
+async function blobToDownload(blob: Blob, filename: string, fallbackType: string): Promise<void> {
+  const type = blob.type || ''
+  if (type.includes('application/json') || type.includes('text/plain')) {
+    const text = await blob.text()
+    let msg = 'Ошибка скачивания'
+    try {
+      const j = JSON.parse(text) as { message?: string; error?: string }
+      msg = j.message || j.error || msg
+    } catch {
+      if (text.trim()) msg = text.slice(0, 200)
+    }
+    throw new Error(msg)
+  }
+  const out =
+    blob.type && blob.type !== 'application/octet-stream'
+      ? blob
+      : new Blob([blob], { type: fallbackType })
+  const url = URL.createObjectURL(out)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.style.display = 'none'
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
 
 /** Скачивание бинарного ответа API (Excel, CSV, ZIP) с cookie/JWT */
 export async function downloadApiBlob(path: string, filename: string): Promise<void> {
   const res = await client.get(path, { responseType: 'blob' })
-  const blob = new Blob([res.data], { type: (res.headers['content-type'] as string) || 'application/octet-stream' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  a.click()
-  URL.revokeObjectURL(url)
+  await blobToDownload(
+    res.data as Blob,
+    filename,
+    (res.headers['content-type'] as string) || 'application/octet-stream'
+  )
 }
 
 // Request deduplication + short TTL cache for getMe() to prevent storms on app start / route changes
@@ -213,16 +288,54 @@ export const platformService = {
 // Restaurant services (ADMIN/WORKER)
 export const restaurantService = {
   // Ingredients
+  /** Одна страница (для таблицы на UI). */
+  async getIngredientsPage(opts?: {
+    page?: number
+    size?: number
+    search?: string
+    belowMin?: boolean
+  }): Promise<IngredientsPageResult> {
+    const page = opts?.page ?? 0
+    const size = opts?.size ?? 20
+    const data = await fetchIngredientsPageRaw(page, size, opts?.search, opts?.belowMin)
+    return {
+      content: Array.isArray(data.content) ? data.content : [],
+      totalElements: data.totalElements ?? 0,
+      totalPages: data.totalPages ?? 0,
+      number: data.number ?? page,
+      size: data.size ?? size,
+    }
+  },
+
+  /** Все строки, подходящие под фильтр (цикл страниц до 200/стр.) — для выпадающих списков и проверки остатков. */
   async getIngredients(search?: string, belowMin?: boolean) {
-    const params = new URLSearchParams()
-    if (search) params.append('search', search)
-    if (belowMin) params.append('belowMin', 'true')
-    // Добавляем параметры пагинации
-    params.append('page', '0')
-    params.append('size', '100') // Запрашиваем достаточно много для отображения
-    const response = await client.get<{ content: Ingredient[] }>(`/ingredients?${params}`)
-    console.log('Ingredients API response:', response.data)
-    return response.data.content || []
+    const pageSize = 200 // matches PaginationConstraints.MAX_PAGE_SIZE
+    const all: Ingredient[] = []
+
+    const maxSafetyPages = 500
+    for (let page = 0; page < maxSafetyPages; page++) {
+      if (page > 0) {
+        await new Promise((r) => setTimeout(r, 55))
+      }
+
+      const data = await fetchIngredientsPageRaw(page, pageSize, search, belowMin)
+
+      const chunk = Array.isArray(data.content) ? data.content : []
+      all.push(...chunk)
+
+      const noMoreRows = chunk.length === 0 || data.empty === true
+      const shorterThanFullPage = chunk.length < pageSize
+      const flaggedLast = data.last === true
+      const pastEndByMeta =
+        typeof data.number === 'number' &&
+        typeof data.totalPages === 'number' &&
+        data.totalPages > 0 &&
+        data.number >= data.totalPages - 1
+
+      if (noMoreRows || shorterThanFullPage || flaggedLast || pastEndByMeta) break
+    }
+
+    return all
   },
 
   async createIngredient(data: Partial<Ingredient>): Promise<Ingredient> {
@@ -246,6 +359,10 @@ export const restaurantService = {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
     return response.data
+  },
+
+  async downloadIngredientsExcel(filename = 'ingredients.xlsx'): Promise<void> {
+    return downloadApiBlob('/ingredients/export-excel', filename)
   },
 
   // Stock Movements
@@ -970,6 +1087,7 @@ export const bookingService = {
     size?: number
     sort?: string
     customerSearch?: string
+    linkedToOrder?: boolean
   }): Promise<Booking[] | { content: Booking[]; totalElements: number; totalPages: number; number: number; size: number }> {
     const params = new URLSearchParams()
     if (filters?.branchId) params.append('branchId', filters.branchId.toString())
@@ -984,6 +1102,8 @@ export const bookingService = {
     if (filters?.size != null) params.append('size', String(filters.size))
     if (filters?.sort) params.append('sort', filters.sort)
     if (filters?.customerSearch != null && filters.customerSearch.trim() !== '') params.append('customerSearch', filters.customerSearch.trim())
+    if (filters?.linkedToOrder === true) params.append('linkedToOrder', 'true')
+    else if (filters?.linkedToOrder === false) params.append('linkedToOrder', 'false')
     const response = await client.get<Booking[] | { content: Booking[]; totalElements: number; totalPages: number; number: number; size: number }>(`/bookings?${params}`)
     return response.data
   },
@@ -1399,7 +1519,8 @@ export const stockService = {
   async uploadExcel(
     file: File,
     unitMismatchResolutions?: Record<string, ResolveUnitMismatchRequest>,
-    missingUnitResolutions?: Record<string, Unit>
+    missingUnitResolutions?: Record<string, Unit>,
+    missingIngredientResolutions?: Record<string, ResolveIngredientMissingRequest>
   ): Promise<ExcelUploadResponse> {
     const formData = new FormData()
     formData.append('file', file)
@@ -1411,6 +1532,10 @@ export const stockService = {
     if (missingUnitResolutions && Object.keys(missingUnitResolutions).length > 0) {
       formData.append('missingUnitResolutions', JSON.stringify(missingUnitResolutions))
     }
+
+    if (missingIngredientResolutions && Object.keys(missingIngredientResolutions).length > 0) {
+      formData.append('missingIngredientResolutions', JSON.stringify(missingIngredientResolutions))
+    }
     
     const response = await client.post<ExcelUploadResponse>('/stock/upload-excel', formData)
     return response.data
@@ -1421,20 +1546,15 @@ export const stockService = {
     return response.data
   },
 
+  async downloadStockExcelAsFile(filename = 'ingredients-stock.xlsx'): Promise<void> {
+    return downloadApiBlob('/stock/export-excel', filename)
+  },
+
   async exportMovementsCsvDownload(from: string, to: string): Promise<void> {
     const params = new URLSearchParams({ from, to })
     return downloadApiBlob(`/stock/export-movements-csv?${params}`, `stock_movements_${from}_${to}.csv`)
   },
 
-  async downloadStockExcelAsFile(filename = 'ingredients-stock.xlsx'): Promise<void> {
-    const blob = await stockService.downloadStockExcel()
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    a.click()
-    URL.revokeObjectURL(url)
-  },
 }
 
 // Dish Category Service

@@ -11,6 +11,10 @@ import PaymentQrModal from '../../components/PaymentQrModal'
 import PaymentQrMultiModal from '../../components/PaymentQrMultiModal'
 import TelegramLinkModal from '../../components/TelegramLinkModal'
 import { telegramPaymentService } from '../../api/telegramPaymentService'
+import {
+  TELEGRAM_ONLINE_PAYMENT_DISABLED_MESSAGE,
+  TELEGRAM_ONLINE_PAYMENT_ENABLED,
+} from '../../config/paymentConfig'
 import SplitBill from '../../components/SplitBill'
 import Modal from '../../components/Modal'
 import './OrderDetails.css'
@@ -21,6 +25,7 @@ export default function OrderDetails() {
   const { user } = useOutletContext<{ user?: User }>()
   const [order, setOrder] = useState<Order | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showTelegramLinkModal, setShowTelegramLinkModal] = useState(false)
   const [paymentRequestId, setPaymentRequestId] = useState<string | null>(null)
@@ -45,7 +50,9 @@ export default function OrderDetails() {
   useEffect(() => {
     if (id) {
       loadOrder()
-      checkTelegramStatus()
+      if (TELEGRAM_ONLINE_PAYMENT_ENABLED) {
+        checkTelegramStatus()
+      }
     }
   }, [id])
 
@@ -74,6 +81,10 @@ export default function OrderDetails() {
 
   /** Только создание запроса в бот / ожидание QR; отметка «оплачено» — отдельной кнопкой после QR. */
   const handlePayOnlineStart = async (slotIndex: number) => {
+    if (!TELEGRAM_ONLINE_PAYMENT_ENABLED) {
+      alert(TELEGRAM_ONLINE_PAYMENT_DISABLED_MESSAGE)
+      return
+    }
     if (!order?.id) return
     const slot = paymentRequests[slotIndex]
     if (!slot) return
@@ -120,7 +131,11 @@ export default function OrderDetails() {
 
     const telegramId: string | null = paymentRequestId
     if (paid && via !== 'CASH' && telegramId == null) {
-      alert('Сначала нажмите «Оплатить онлайн» и дождитесь QR, затем «Оплачено (онлайн)».')
+      if (!TELEGRAM_ONLINE_PAYMENT_ENABLED) {
+        alert(TELEGRAM_ONLINE_PAYMENT_DISABLED_MESSAGE)
+      } else {
+        alert('Сначала нажмите «Оплатить онлайн» и дождитесь QR, затем «Оплачено (онлайн)».')
+      }
       return
     }
 
@@ -167,8 +182,17 @@ export default function OrderDetails() {
   }
 
   const loadOrder = async () => {
+    const orderId = parseInt(id!, 10)
+    if (!id || Number.isNaN(orderId)) {
+      setLoadError('Некорректный номер заказа')
+      setOrder(null)
+      setLoading(false)
+      return
+    }
+    setLoading(true)
+    setLoadError(null)
     try {
-      const data = await restaurantService.getOrder(parseInt(id!))
+      const data = await restaurantService.getOrder(orderId)
       console.log('Loaded order:', data)
       if (data.items) {
         data.items.forEach((item, index) => {
@@ -194,8 +218,18 @@ export default function OrderDetails() {
       } else {
         setOrderSplit(null)
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to load order:', error)
+      setOrder(null)
+      const status = error?.response?.status
+      const msg = error?.response?.data?.message as string | undefined
+      if (status === 404) {
+        setLoadError('Заказ не найден или был удалён')
+      } else if (status === 403 || (status === 400 && msg?.toLowerCase().includes('access denied'))) {
+        setLoadError('Нет доступа к этому заказу')
+      } else {
+        setLoadError(msg || 'Не удалось загрузить заказ. Проверьте соединение и попробуйте снова.')
+      }
     } finally {
       setLoading(false)
     }
@@ -303,33 +337,67 @@ export default function OrderDetails() {
     }
   }
 
+  const openPaymentDraftModal = (
+    slots: Array<{ id: string | null; label: string; amount: number; invoiceId: string }>,
+  ) => {
+    setPaymentRequestId(null)
+    setPaymentRequests(slots)
+    setShowPaymentModal(true)
+  }
+
   const handleCreatePaymentLink = async () => {
     if (!order) return
-    if (!telegramLinked) {
-      setShowTelegramLinkModal(true)
-      return
-    }
-    if (!bankBotUsername.trim()) {
-      alert('Укажите username получателя (бот или пользователь Telegram)')
-      return
-    }
-    try {
-      await telegramPaymentService.updateSettings(bankBotUsername.trim())
-    } catch {
-      // ignore
+    if (TELEGRAM_ONLINE_PAYMENT_ENABLED) {
+      if (!telegramLinked) {
+        setShowTelegramLinkModal(true)
+        return
+      }
+      if (!bankBotUsername.trim()) {
+        alert('Укажите username получателя (бот или пользователь Telegram)')
+        return
+      }
+      try {
+        await telegramPaymentService.updateSettings(bankBotUsername.trim())
+      } catch {
+        // ignore
+      }
     }
 
     if (orderSplit && orderSplit.shares.length > 0) {
       setShowPaymentModeModal(true)
       return
     }
-    await runCreatePaymentRequests([{ amount: -1, label: '' }])
+
+    if (TELEGRAM_ONLINE_PAYMENT_ENABLED) {
+      await runCreatePaymentRequests([{ amount: -1, label: '' }])
+    } else {
+      openPaymentDraftModal([
+        {
+          id: null,
+          label: `Заказ ${order.id}`,
+          amount: Number(order.totalAmount),
+          invoiceId: `order_${order.id}`,
+        },
+      ])
+    }
   }
 
   const handlePaymentModeFull = async () => {
     setShowPaymentModeModal(false)
     setShowPaymentCustomGroups(false)
-    await runCreatePaymentRequests([{ amount: -1, label: '' }])
+    if (!order) return
+    if (TELEGRAM_ONLINE_PAYMENT_ENABLED) {
+      await runCreatePaymentRequests([{ amount: -1, label: '' }])
+    } else {
+      openPaymentDraftModal([
+        {
+          id: null,
+          label: `Заказ ${order.id}`,
+          amount: Number(order.totalAmount),
+          invoiceId: `order_${order.id}`,
+        },
+      ])
+    }
   }
 
   const handlePaymentModeByShare = async () => {
@@ -425,7 +493,25 @@ export default function OrderDetails() {
   }
 
   if (loading) return <div>Loading...</div>
-  if (!order) return <div>Order not found</div>
+  if (!order) {
+    return (
+      <div className="order-details-page">
+        <div className="order-not-found-panel">
+          <p>{loadError || 'Заказ не найден'}</p>
+          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+            <button type="button" className="btn-secondary" onClick={() => navigate('/orders')}>
+              К списку заказов
+            </button>
+            {id && (
+              <button type="button" className="btn-primary" onClick={() => loadOrder()}>
+                Повторить
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   const columns = [
     {
@@ -536,44 +622,56 @@ export default function OrderDetails() {
         )}
         {order.status === 'CLOSED' && (
           <div className="payment-actions">
-            <div className="bot-username-row">
-              <label htmlFor="bankBotUsername">Получатель в Telegram:</label>
-              <div className="bot-username-input-group">
-                <span className="at-sign">@</span>
-                <input
-                  id="bankBotUsername"
-                  type="text"
-                  value={bankBotUsername}
-                  onChange={(e) => setBankBotUsername(e.target.value.replace(/^@/, ''))}
-                  placeholder="username бота или пользователя"
-                  className="bot-username-input"
-                />
-                <button
-                  className="btn-small"
-                  onClick={handleSaveBotUsername}
-                  disabled={savingBot || !bankBotUsername.trim()}
-                  title="Сохранить"
-                >
-                  {savingBot ? '...' : '💾'}
-                </button>
+            {!TELEGRAM_ONLINE_PAYMENT_ENABLED && (
+              <p className="payment-tg-disabled-banner">{TELEGRAM_ONLINE_PAYMENT_DISABLED_MESSAGE}</p>
+            )}
+            {TELEGRAM_ONLINE_PAYMENT_ENABLED && (
+              <div className="bot-username-row">
+                <label htmlFor="bankBotUsername">Получатель в Telegram:</label>
+                <div className="bot-username-input-group">
+                  <span className="at-sign">@</span>
+                  <input
+                    id="bankBotUsername"
+                    type="text"
+                    value={bankBotUsername}
+                    onChange={(e) => setBankBotUsername(e.target.value.replace(/^@/, ''))}
+                    placeholder="username бота или пользователя"
+                    className="bot-username-input"
+                  />
+                  <button
+                    className="btn-small"
+                    onClick={handleSaveBotUsername}
+                    disabled={savingBot || !bankBotUsername.trim()}
+                    title="Сохранить"
+                  >
+                    {savingBot ? '...' : '💾'}
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
             <div className="payment-buttons-row">
-              <button 
-                className="btn-primary" 
+              <button
+                className="btn-primary"
                 onClick={handleCreatePaymentLink}
-                disabled={creatingPayment || !bankBotUsername.trim()}
+                disabled={
+                  creatingPayment ||
+                  (TELEGRAM_ONLINE_PAYMENT_ENABLED && !bankBotUsername.trim())
+                }
               >
-                {creatingPayment ? 'Создание...' : 'Сформировать ссылку оплаты'}
+                {creatingPayment
+                  ? 'Создание...'
+                  : TELEGRAM_ONLINE_PAYMENT_ENABLED
+                    ? 'Сформировать ссылку оплаты'
+                    : 'Оплата заказа'}
               </button>
-              {telegramLinked !== null && (
+              {TELEGRAM_ONLINE_PAYMENT_ENABLED && telegramLinked !== null && (
                 <span className={`telegram-status ${telegramLinked ? 'connected' : 'disconnected'}`}>
                   {telegramLinked ? '✅ Telegram подключён' : '⚠️ Telegram не подключён'}
                 </span>
               )}
-              {telegramLinked && (
-                <button 
-                  className="btn-link" 
+              {TELEGRAM_ONLINE_PAYMENT_ENABLED && telegramLinked && (
+                <button
+                  className="btn-link"
                   onClick={() => setShowTelegramLinkModal(true)}
                 >
                   Переподключить
@@ -599,7 +697,9 @@ export default function OrderDetails() {
           paymentRequestId={paymentRequestId}
           orderId={order.id}
           markedPaid={paymentMarks[paymentRequestId]?.paid}
-          onMarkPaid={(paid) => handleMarkPaid(paymentRequestId, paid)}
+          onMarkPaid={(paid) =>
+            handleMarkPaid(paymentRequestId, paid, paid ? 'CASH' : undefined)
+          }
         />
       )}
 
@@ -628,13 +728,19 @@ export default function OrderDetails() {
           <div className="payment-mode-modal">
             {!showPaymentCustomGroups ? (
               <>
-                <p className="payment-mode-hint">Выберите, как сформировать ссылки на оплату:</p>
+                <p className="payment-mode-hint">
+                  {TELEGRAM_ONLINE_PAYMENT_ENABLED
+                    ? 'Выберите, как сформировать ссылки на оплату:'
+                    : 'Выберите раскладку счетов для отметки оплаты (пока доступна только оплата наличными):'}
+                </p>
                 <div className="payment-mode-buttons">
                   <button type="button" className="btn-primary payment-mode-btn" onClick={handlePaymentModeFull}>
                     Один счёт (вся сумма)
                   </button>
                   <button type="button" className="btn-primary payment-mode-btn" onClick={handlePaymentModeByShare}>
-                    По долям (отдельный QR на каждого гостя)
+                    {TELEGRAM_ONLINE_PAYMENT_ENABLED
+                      ? 'По долям (отдельный QR на каждого гостя)'
+                      : 'По долям (отдельный счёт на каждого гостя)'}
                   </button>
                   <button type="button" className="btn-secondary payment-mode-btn" onClick={handlePaymentModeCustom}>
                     Объединить доли (несколько счетов по выбору)
@@ -683,7 +789,7 @@ export default function OrderDetails() {
                 })}
                 <div className="payment-mode-buttons">
                   <button type="button" className="btn-primary" onClick={handlePaymentCustomConfirm}>
-                    Сформировать ссылки
+                    {TELEGRAM_ONLINE_PAYMENT_ENABLED ? 'Сформировать ссылки' : 'Открыть счета'}
                   </button>
                   <button type="button" className="btn-secondary" onClick={() => setShowPaymentCustomGroups(false)}>
                     Назад
@@ -715,11 +821,13 @@ export default function OrderDetails() {
         </Modal>
       )}
 
-      <TelegramLinkModal
-        isOpen={showTelegramLinkModal}
-        onClose={() => setShowTelegramLinkModal(false)}
-        onSuccess={handleTelegramLinkSuccess}
-      />
+      {TELEGRAM_ONLINE_PAYMENT_ENABLED && (
+        <TelegramLinkModal
+          isOpen={showTelegramLinkModal}
+          onClose={() => setShowTelegramLinkModal(false)}
+          onSuccess={handleTelegramLinkSuccess}
+        />
+      )}
     </div>
   )
 }

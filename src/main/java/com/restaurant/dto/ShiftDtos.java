@@ -2,6 +2,7 @@ package com.restaurant.dto;
 
 import com.restaurant.model.Shift;
 import com.restaurant.model.ShiftTemplate;
+import com.restaurant.model.ShiftTemplateDaySchedule;
 import com.restaurant.model.ShiftSwapRequest;
 
 import java.time.LocalDateTime;
@@ -80,6 +81,16 @@ public class ShiftDtos {
         String comment
     ) {}
 
+    public record ShiftTemplateDayScheduleDto(
+        Integer day,
+        LocalTime startTime,
+        LocalTime endTime
+    ) {
+        public static ShiftTemplateDayScheduleDto fromEntity(ShiftTemplateDaySchedule s) {
+            return new ShiftTemplateDayScheduleDto(s.getDay(), s.getStartTime(), s.getEndTime());
+        }
+    }
+
     public record ShiftTemplateDto(
         Long id,
         String name,
@@ -88,6 +99,7 @@ public class ShiftDtos {
         LocalTime endTime,
         String dayOfWeek,
         List<Integer> daysOfWeek,
+        List<ShiftTemplateDayScheduleDto> daySchedules,
         String shiftType,
         String recurrenceRule,
         String validFrom,
@@ -100,6 +112,12 @@ public class ShiftDtos {
             List<Integer> dow = template.getDaysOfWeek() != null && !template.getDaysOfWeek().isEmpty()
                 ? List.copyOf(template.getDaysOfWeek())
                 : null;
+            List<ShiftTemplateDayScheduleDto> schedules = null;
+            if (template.getDaySchedules() != null && !template.getDaySchedules().isEmpty()) {
+                schedules = template.getDaySchedules().stream()
+                    .map(ShiftTemplateDayScheduleDto::fromEntity)
+                    .toList();
+            }
             return new ShiftTemplateDto(
                 template.getId(),
                 template.getName(),
@@ -108,6 +126,7 @@ public class ShiftDtos {
                 template.getEndTime(),
                 template.getDayOfWeek() != null ? template.getDayOfWeek().name() : null,
                 dow,
+                schedules,
                 template.getShiftType() != null ? template.getShiftType().name() : null,
                 template.getRecurrenceRule(),
                 template.getValidFrom() != null ? template.getValidFrom().toString() : null,
@@ -125,6 +144,7 @@ public class ShiftDtos {
         LocalTime endTime,
         Integer dayOfWeek,
         List<Integer> daysOfWeek,
+        List<ShiftTemplateDayScheduleDto> daySchedules,
         String shiftType,
         String recurrenceRule
     ) {}

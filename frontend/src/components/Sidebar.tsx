@@ -19,7 +19,6 @@ export default function Sidebar({ user, showPlatformNav, showRestaurantNav }: Si
     platform: false,
     restaurant: false,
     tariffs: false,
-    loyalty: false,
     management: false,
   })
 
@@ -128,9 +127,6 @@ export default function Sidebar({ user, showPlatformNav, showRestaurantNav }: Si
                       <NavLink to="/qr-menu-config" className={({ isActive }) => (isActive ? 'active' : '')}>
                         QR-меню
                       </NavLink>
-                      <NavLink to="/telegram" className={({ isActive }) => (isActive ? 'active' : '')}>
-                        Telegram Shop (Mini App)
-                      </NavLink>
                     </>
                   )}
                 </div>
@@ -178,41 +174,6 @@ export default function Sidebar({ user, showPlatformNav, showRestaurantNav }: Si
               </div>
             )}
 
-            {/* ===== Loyalty section ===== */}
-            {isAdmin && (
-              <div className="nav-folder">
-                <button
-                  className={`nav-folder-toggle ${openSections.loyalty ? 'open' : ''}`}
-                  onClick={() => toggleSection('loyalty')}
-                >
-                  <span className="nav-folder-icon">{openSections.loyalty ? '▾' : '▸'}</span>
-                  Лояльность
-                </button>
-                {openSections.loyalty && (
-                  <div className="nav-folder-content">
-                    <NavLink to="/loyalty" end className={({ isActive }) => (isActive ? 'active' : '')}>
-                      Dashboard
-                    </NavLink>
-                    <NavLink to="/loyalty/guests" className={({ isActive }) => (isActive ? 'active' : '')}>
-                      База гостей
-                    </NavLink>
-                    <NavLink to="/loyalty/campaigns" className={({ isActive }) => (isActive ? 'active' : '')}>
-                      Акции
-                    </NavLink>
-                    <NavLink to="/loyalty/tiers" className={({ isActive }) => (isActive ? 'active' : '')}>
-                      Уровни
-                    </NavLink>
-                    <NavLink to="/loyalty/gamification" className={({ isActive }) => (isActive ? 'active' : '')}>
-                      Геймификация
-                    </NavLink>
-                    <NavLink to="/loyalty/segments" className={({ isActive }) => (isActive ? 'active' : '')}>
-                      Сегменты и RFM
-                    </NavLink>
-                  </div>
-                )}
-              </div>
-            )}
-
             {/* ===== Management section ===== */}
             {isAdmin && (
               <div className="nav-folder">
@@ -227,12 +188,6 @@ export default function Sidebar({ user, showPlatformNav, showRestaurantNav }: Si
                   <div className="nav-folder-content">
                     <NavLink to="/activity-log" className={({ isActive }) => (isActive ? 'active' : '')}>
                       Лог активности
-                    </NavLink>
-                    <NavLink to="/users" className={({ isActive }) => (isActive ? 'active' : '')}>
-                      Пользователи
-                    </NavLink>
-                    <NavLink to="/shifts" className={({ isActive }) => (isActive ? 'active' : '')}>
-                      Смены
                     </NavLink>
                   </div>
                 )}

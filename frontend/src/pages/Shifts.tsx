@@ -433,7 +433,10 @@ export default function Shifts() {
       </div>
 
       {loading ? (
-        <div className="loading-spinner">Загрузка...</div>
+        <div className="shifts-loading" role="status" aria-live="polite">
+          <div className="shifts-loading-spinner" aria-hidden="true" />
+          <p>Загрузка...</p>
+        </div>
       ) : employees.length === 0 ? (
         <div className="no-employees">
           <p>Нет сотрудников для отображения</p>

@@ -14,6 +14,7 @@ import com.restaurant.model.User;
 import com.restaurant.repository.RestaurantRepository;
 import com.restaurant.repository.UserRepository;
 import com.restaurant.security.SecurityUtils;
+import com.restaurant.util.AuthInputNormalizer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -190,20 +191,25 @@ public class PlatformService {
         if (!SecurityUtils.isHeadAdmin()) {
             throw new BusinessException("Only HEAD_ADMIN can create admins");
         }
-        
+
+        String email = AuthInputNormalizer.normalizeLoginIdentifierForLookup(request.email());
+        if (email == null) {
+            throw new BusinessException("Invalid email format");
+        }
+
         Restaurant restaurant = restaurantRepository.findById(restaurantId)
             .orElseThrow(() -> new ResourceNotFoundException("Restaurant not found with id: " + restaurantId));
-        
+
         log.debug("Restaurant found: {}", restaurant.getName());
-        
-        if (userRepository.existsByUsername(request.email())) {
-            log.warn("User with email '{}' already exists", request.email());
-            throw new BusinessException("User with email '" + request.email() + "' already exists");
+
+        if (userRepository.existsByUsername(email)) {
+            log.warn("User with email '{}' already exists", email);
+            throw new BusinessException("User with email '" + email + "' already exists");
         }
-        
+
         User user = new User();
-        user.setUsername(request.email());
-        user.setPasswordHash(passwordEncoder.encode(request.password()));
+        user.setUsername(email);
+        user.setPasswordHash(passwordEncoder.encode(AuthInputNormalizer.stripNulCharsFromPassword(request.password())));
         user.setRole(Role.ADMIN);
         user.setRestaurant(restaurant);
         user.setFirstName(request.firstName());

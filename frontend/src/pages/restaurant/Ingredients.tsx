@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { restaurantService } from '../../api/services'
 import { retryOnRateLimit } from '../../utils/apiRetry'
-import { getCache, setCache, clearCache } from '../../utils/cache'
+import { getCache, setCache, clearCache, clearCacheByPrefix } from '../../utils/cache'
 import type { Ingredient } from '../../api/types'
 import DataTable from '../../components/DataTable'
 import Modal from '../../components/Modal'
@@ -10,18 +10,29 @@ import FormInput from '../../components/FormInput'
 import SearchBar from '../../components/SearchBar'
 import { useOutletContext } from 'react-router-dom'
 import type { User } from '../../api/types'
+import ExcelHoverHint from '../../components/ExcelHoverHint'
 import './Ingredients.css'
 
 const INGREDIENTS_CACHE_KEY = 'ingredients_cache'
+const PAGE_SIZE = 20
+
+const INGREDIENTS_EXCEL_HINT = `Формат .xlsx (один лист):
+• Столбец 1: Name
+• Столбец 2: Unit (G, ML или PCS)
+• Столбец 3: Min Quantity
+
+Первая строка — заголовок, в импорт не входит (данные со 2-й строки). Остаток на складе не меняется.`
 
 export default function Ingredients() {
   const { user } = useOutletContext<{ user?: User }>()
   const [searchParams, setSearchParams] = useSearchParams()
   const [search, setSearch] = useState('')
   const [belowMin, setBelowMin] = useState(searchParams.get('belowMin') === '1')
-  
-  // Initialize with cached data if available (after state is defined)
-  const cacheKey = `${INGREDIENTS_CACHE_KEY}_${search}_${belowMin}`
+  const [currentPage, setCurrentPage] = useState(0)
+  const [totalPages, setTotalPages] = useState(0)
+  const [totalElements, setTotalElements] = useState(0)
+
+  const cacheKey = `${INGREDIENTS_CACHE_KEY}_${search}_${belowMin}_${currentPage}_${PAGE_SIZE}`
   const cachedData = getCache<Ingredient[]>(cacheKey)
   const [ingredients, setIngredients] = useState<Ingredient[]>(cachedData || [])
   const [loading, setLoading] = useState(!cachedData)
@@ -44,18 +55,21 @@ export default function Ingredients() {
   const [stockOutNote, setStockOutNote] = useState('')
   const [minQtyDisplay, setMinQtyDisplay] = useState('')
   const [uploading, setUploading] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const isAdmin = user?.role === 'ADMIN'
 
   useEffect(() => {
-    const currentCacheKey = `${INGREDIENTS_CACHE_KEY}_${search}_${belowMin}`
-    const cached = getCache<Ingredient[]>(currentCacheKey)
-    
+    setCurrentPage(0)
+  }, [search, belowMin])
+
+  useEffect(() => {
+    const cached = getCache<Ingredient[]>(cacheKey)
+
     if (cached) {
       setIngredients(cached)
       setLoading(false)
-      // Background refresh after delay
       const timeoutId = setTimeout(() => {
         loadIngredients(true)
       }, 200)
@@ -64,30 +78,37 @@ export default function Ingredients() {
       loadIngredients(false)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, belowMin])
+  }, [search, belowMin, currentPage])
 
   const loadIngredients = async (isBackground = false) => {
     if (!isBackground) {
       setLoading(true)
     }
     try {
-      const data = await retryOnRateLimit(
-        () => restaurantService.getIngredients(search || undefined, belowMin),
+      const page = await retryOnRateLimit(
+        () =>
+          restaurantService.getIngredientsPage({
+            page: currentPage,
+            size: PAGE_SIZE,
+            search: search || undefined,
+            belowMin,
+          }),
         1,
         200
       )
-      const ingredientsArray = Array.isArray(data) ? data : []
-      // Always update state, even in background, to show fresh data
-      setIngredients(ingredientsArray)
-      const currentCacheKey = `${INGREDIENTS_CACHE_KEY}_${search}_${belowMin}`
-      setCache(currentCacheKey, ingredientsArray)
-      console.log(`[Ingredients] ${isBackground ? 'Background' : 'Initial'} refresh completed, ${ingredientsArray.length} items`)
+      const list = page.content
+      setIngredients(list)
+      setTotalPages(page.totalPages)
+      setTotalElements(page.totalElements)
+      setCache(cacheKey, list)
+      console.log(
+        `[Ingredients] ${isBackground ? 'Background' : 'Initial'} page ${currentPage + 1}/${Math.max(1, page.totalPages)}, ${list.length} rows, total ${page.totalElements}`
+      )
     } catch (error) {
       console.error('Failed to load ingredients:', error)
-      if (!isBackground) {
-        setIngredients([])
-      }
-      // On background error, keep existing data
+      clearCache(cacheKey)
+      // Do not force an empty list on failure (avoids "no rows" after a transient API error while create still sees DB state).
+      // On background error, keep existing data.
     } finally {
       if (!isBackground) {
         setLoading(false)
@@ -110,7 +131,7 @@ export default function Ingredients() {
       } else {
         alert(`Imported successfully.\nProcessed: ${resp.processedCount}, created: ${resp.createdCount}, updated: ${resp.updatedCount}.`)
       }
-      clearCache(`${INGREDIENTS_CACHE_KEY}_${search}_${belowMin}`)
+      clearCacheByPrefix(INGREDIENTS_CACHE_KEY)
       loadIngredients(false)
     } catch (error: any) {
       alert(error?.response?.data?.message || 'Failed to import Excel')
@@ -149,7 +170,7 @@ export default function Ingredients() {
       setFormData({ name: '', unit: 'G', stockQty: '', minQty: '' })
       setMinQtyDisplay('')
       // Clear cache and reload
-      clearCache(`${INGREDIENTS_CACHE_KEY}_${search}_${belowMin}`)
+      clearCacheByPrefix(INGREDIENTS_CACHE_KEY)
       loadIngredients(false)
     } catch (error: any) {
       alert(error.response?.data?.message || 'Failed to create ingredient')
@@ -174,7 +195,7 @@ export default function Ingredients() {
       setStockInNote('')
       setSelectedIngredient(null)
       // Clear cache and reload
-      clearCache(`${INGREDIENTS_CACHE_KEY}_${search}_${belowMin}`)
+      clearCacheByPrefix(INGREDIENTS_CACHE_KEY)
       loadIngredients(false)
     } catch (error: any) {
       alert(error.response?.data?.message || 'Failed to process stock in')
@@ -201,7 +222,7 @@ export default function Ingredients() {
       setStockOutNote('')
       setSelectedIngredient(null)
       // Clear cache and reload
-      clearCache(`${INGREDIENTS_CACHE_KEY}_${search}_${belowMin}`)
+      clearCacheByPrefix(INGREDIENTS_CACHE_KEY)
       loadIngredients(false)
     } catch (error: any) {
       alert(error.response?.data?.message || 'Failed to process stock out')
@@ -216,7 +237,7 @@ export default function Ingredients() {
     try {
       await restaurantService.deleteIngredient(ingredient.id)
       // Clear cache and reload
-      clearCache(`${INGREDIENTS_CACHE_KEY}_${search}_${belowMin}`)
+      clearCacheByPrefix(INGREDIENTS_CACHE_KEY)
       loadIngredients(false)
     } catch (error: any) {
       alert(error.response?.data?.message || 'Failed to delete ingredient')
@@ -307,13 +328,35 @@ export default function Ingredients() {
               style={{ display: 'none' }}
               onChange={(e) => handleExcelSelect(e.target.files?.[0] || null)}
             />
+            <ExcelHoverHint hint={INGREDIENTS_EXCEL_HINT}>
+              <button
+                className="btn-secondary"
+                disabled={uploading || exporting}
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {uploading ? 'Importing…' : 'Import Excel'}
+              </button>
+            </ExcelHoverHint>
             <button
               className="btn-secondary"
-              disabled={uploading}
-              onClick={() => fileInputRef.current?.click()}
-              title="Excel format: 1) name 2) unit (G/ML/PCS) 3) minimum quantity"
+              disabled={uploading || exporting}
+              type="button"
+              onClick={async () => {
+                setExporting(true)
+                try {
+                  const date = new Date().toISOString().slice(0, 10)
+                  await restaurantService.downloadIngredientsExcel(`ingredients_${date}.xlsx`)
+                } catch (e: unknown) {
+                  console.error(e)
+                  const msg = e instanceof Error ? e.message : 'Не удалось скачать Excel'
+                  alert(msg)
+                } finally {
+                  setExporting(false)
+                }
+              }}
             >
-              {uploading ? 'Importing…' : 'Import Excel'}
+              {exporting ? 'Exporting…' : 'Download Excel'}
             </button>
             <button className="btn-primary" onClick={() => setShowCreateModal(true)}>
               Add Ingredient
@@ -348,7 +391,45 @@ export default function Ingredients() {
         emptyMessage="No ingredients found"
       />
 
-      {/* Create Modal */}
+      {totalPages > 1 && (
+        <div className="ingredients-pagination">
+          <button
+            type="button"
+            onClick={() => setCurrentPage(0)}
+            disabled={currentPage === 0 || loading}
+            className="btn-secondary"
+          >
+            First
+          </button>
+          <button
+            type="button"
+            onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
+            disabled={currentPage === 0 || loading}
+            className="btn-secondary"
+          >
+            Previous
+          </button>
+          <span>
+            Page {currentPage + 1} of {totalPages} ({totalElements} total)
+          </span>
+          <button
+            type="button"
+            onClick={() => setCurrentPage((p) => p + 1)}
+            disabled={currentPage >= totalPages - 1 || loading}
+            className="btn-secondary"
+          >
+            Next
+          </button>
+          <button
+            type="button"
+            onClick={() => setCurrentPage(Math.max(0, totalPages - 1))}
+            disabled={currentPage >= totalPages - 1 || loading}
+            className="btn-secondary"
+          >
+            Last
+          </button>
+        </div>
+      )}
       <Modal
         isOpen={showCreateModal}
         onClose={() => {

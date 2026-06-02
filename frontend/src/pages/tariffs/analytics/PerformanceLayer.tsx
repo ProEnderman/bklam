@@ -217,11 +217,12 @@ function CohortRetentionSection({ cohort }: { cohort: any }) {
 }
 
 function CustomerModule({ data }: { data: any }) {
-  const { conversion, rfm, cohort } = data
+  const { conversion, rfm, cohort, volume } = data
   const funnel = conversion?.funnel || {}
   const clientLtv = conversion?.clientLtv || {}
   const rfmSegments = rfm && typeof rfm === 'object' && rfm.segments ? rfm.segments : {}
   const hasRfm = Object.keys(rfmSegments).length > 0
+  const funnelTotal = funnel.total ?? volume?.total ?? 0
 
   const ltvData = Object.entries(clientLtv)
     .map(([name, v]: [string, any]) => ({ name, revenue: v.totalRevenue, visits: v.visits, avgCheck: v.avgCheck }))
@@ -232,7 +233,7 @@ function CustomerModule({ data }: { data: any }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px' }}>
         <KPICard compact title="Уникальных клиентов" value={fmt(conversion?.uniqueClients)} severity="neutral" />
         <KPICard compact title="Повторных" value={fmt(conversion?.repeatClients)} severity="neutral" subtitle={pct(conversion?.retentionRate) + ' удержание'} />
-        <KPICard compact title="Конверсия в оплату" value={pct(funnel?.confirmedToPaidPct)} severity="neutral" />
+        <KPICard compact title="Конверсия в оплату" value={pct(conversion?.paymentConversionPct)} severity="neutral" />
         <KPICard compact title="Отмены" value={pct(conversion?.cancelRate)} severity={conversion?.cancelRate > 20 ? 'warning' : 'neutral'} />
       </div>
 
@@ -240,7 +241,7 @@ function CustomerModule({ data }: { data: any }) {
       <Section title="Воронка конверсии">
         <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', alignItems: 'center' }}>
           {[
-            { label: 'Черновики', value: funnel.draft, color: '#9ca3af' },
+            { label: 'Всего', value: funnelTotal, color: '#9ca3af' },
             { label: 'Подтв.', value: funnel.confirmed, color: '#f59e0b' },
             { label: 'Оплачено', value: funnel.paid, color: '#10b981' },
           ].map((step, i) => (
@@ -312,7 +313,7 @@ function CapacityModule({ data }: { data: any }) {
           { key: 'name', label: 'Активность' },
           { key: 'bookedHours', label: 'Занято (ч)', format: (v: number) => v?.toFixed(1), align: 'right' },
           { key: 'possibleHours', label: 'Возможно (ч)', format: (v: number) => v?.toFixed(1), align: 'right' },
-          { key: 'utilization', label: 'Загрузка %', format: (v: number) => pct(v), align: 'right' },
+          { key: 'utilization', label: 'Загрузка %', format: (v: number) => pct(v != null ? Math.min(100, v) : v), align: 'right' },
           { key: 'bookingCount', label: 'Бронирований', format: fmt, align: 'right' },
         ]} data={Object.entries(utilization).map(([name, v]: [string, any]) => ({ name, ...v }))} pageSize={10} />
       </Section>

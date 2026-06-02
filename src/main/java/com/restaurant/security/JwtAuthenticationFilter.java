@@ -1,6 +1,7 @@
 package com.restaurant.security;
 
 import com.restaurant.observability.BusinessMetrics;
+import com.restaurant.util.AuthInputNormalizer;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
@@ -65,18 +66,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (token != null && tokenProvider.validateToken(token)) {
             try {
                 String username = tokenProvider.extractUsername(token);
-                log.debug("JWT Filter - Valid token for user: {}", username);
-                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-                
-                UsernamePasswordAuthenticationToken authentication =
-                    new UsernamePasswordAuthenticationToken(
-                        userDetails,
-                        null,
-                        userDetails.getAuthorities()
-                    );
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-                log.debug("JWT Filter - Authentication set for user: {}", username);
+                String normalized = AuthInputNormalizer.normalizeLoginIdentifierForLookup(username);
+                if (normalized == null) {
+                    log.warn("JWT Filter - rejected malformed username from token");
+                    businessMetrics.incrementAuthFailure();
+                } else {
+                    log.debug("JWT Filter - Valid token for user: {}", normalized);
+                    UserDetails userDetails = userDetailsService.loadUserByUsername(normalized);
+
+                    UsernamePasswordAuthenticationToken authentication =
+                        new UsernamePasswordAuthenticationToken(
+                            userDetails,
+                            null,
+                            userDetails.getAuthorities()
+                        );
+                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                    log.debug("JWT Filter - Authentication set for user: {}", normalized);
+                }
             } catch (Exception ex) {
                 businessMetrics.incrementAuthFailure();
                 log.error("Cannot set user authentication: {}", ex.getMessage(), ex);

@@ -217,11 +217,15 @@ public class BookingAnalyticsService {
         long cancelled = all.stream().filter(b -> b.getStatus() == Booking.BookingStatus.CANCELLED).count();
         long completed = all.stream().filter(b -> b.getStatus() == Booking.BookingStatus.COMPLETED).count();
 
+        result.put("paymentConversionPct", total > 0 ? round((double) paid / total * 100) : 0);
+
         // Funnel
         Map<String, Object> funnel = new LinkedHashMap<>();
+        funnel.put("total", total);
         funnel.put("draft", drafts);
         funnel.put("confirmed", confirmed + paid + completed); // all that moved past draft
         funnel.put("paid", paid);
+        funnel.put("cancelled", cancelled);
         funnel.put("draftToConfirmedPct", total > 0 ? round((double)(confirmed + paid + completed) / total * 100) : 0);
         funnel.put("confirmedToPaidPct", (confirmed + paid + completed) > 0 ?
                 round((double) paid / (confirmed + paid + completed) * 100) : 0);
@@ -326,9 +330,13 @@ public class BookingAnalyticsService {
     @Transactional(readOnly = true)
     public Map<String, Object> getCapacityAnalytics(LocalDate from, LocalDate to, Long restaurantId) {
         Long rid = restaurantId != null ? restaurantId : SecurityUtils.getCurrentRestaurantId();
-        List<Booking> all = allBookings(restaurantId, startOf(from), endOf(to)).stream()
+        List<Booking> allNonCancelled = allBookings(restaurantId, startOf(from), endOf(to)).stream()
                 .filter(b -> b.getStatus() != Booking.BookingStatus.CANCELLED)
                 .collect(Collectors.toList());
+        List<Booking> paidBookings = allNonCancelled.stream()
+                .filter(b -> b.getStatus() == Booking.BookingStatus.PAID)
+                .collect(Collectors.toList());
+        List<Booking> all = allNonCancelled;
 
         Map<String, Object> result = new LinkedHashMap<>();
 
@@ -338,122 +346,47 @@ public class BookingAnalyticsService {
                 .filter(a -> a.getStatus() == Activity.ActivityStatus.ACTIVE)
                 .collect(Collectors.toList());
 
-        // Utilization by activity (hours booked / total possible hours)
-        long totalDays = from != null && to != null ? ChronoUnit.DAYS.between(from, to) + 1 : 30;
-
-        Map<String, Object> activityUtil = new LinkedHashMap<>();
-        for (Activity act : activities) {
-            List<Booking> actBookings = all.stream()
-                    .filter(b -> b.getActivity() != null && b.getActivity().getId().equals(act.getId()))
-                    .collect(Collectors.toList());
-
-            // Рассчитываем часы работы в день из тарифного плана (если задано)
-            double hoursPerDay = 14; // Значение по умолчанию: 10:00-24:00
-            TariffPlan tp = act.getTariffPlan();
-            if (tp != null && tp.getBookingTimeFrom() != null && tp.getBookingTimeTo() != null) {
-                LocalTime bFrom = tp.getBookingTimeFrom();
-                LocalTime bTo = tp.getBookingTimeTo();
-                if (bTo.isAfter(bFrom)) {
-                    hoursPerDay = Duration.between(bFrom, bTo).toMinutes() / 60.0;
-                } else if (bTo.isBefore(bFrom)) {
-                    // Пересекает полночь, например 18:00 - 02:00 = 8 часов
-                    hoursPerDay = (Duration.between(bFrom, LocalTime.of(23, 59, 59)).toMinutes() + 1 + 
-                                   Duration.between(LocalTime.MIDNIGHT, bTo).toMinutes()) / 60.0;
-                } else {
-                    hoursPerDay = 24; // bFrom == bTo — весь день
-                }
-            }
-
-            double totalBookedMinutes = actBookings.stream().mapToDouble(this::minutes).sum();
-            double totalPossibleMinutes = totalDays * hoursPerDay * 60 * act.getConcurrentLimit();
-
-            Map<String, Object> util = new LinkedHashMap<>();
-            util.put("bookedHours", round(totalBookedMinutes / 60));
-            util.put("possibleHours", round(totalPossibleMinutes / 60));
-            util.put("utilization", totalPossibleMinutes > 0 ?
-                    round(totalBookedMinutes / totalPossibleMinutes * 100) : 0);
-            util.put("bookingCount", actBookings.size());
-            util.put("concurrentLimit", act.getConcurrentLimit());
-            activityUtil.put(act.getName(), util);
-        }
-        result.put("activityUtilization", activityUtil);
-
-        // Virtual resource utilization based on concurrentLimit
-        // For each activity, sample every operating hour to measure concurrent usage
-        Map<String, Object> resourceUtil = new LinkedHashMap<>();
         LocalDateTime periodStart = startOf(from);
         LocalDateTime periodEnd = endOf(to);
 
+        Map<String, Object> activityUtil = new LinkedHashMap<>();
+        Map<String, Object> resourceUtil = new LinkedHashMap<>();
         for (Activity act : activities) {
-            List<Booking> actBookings = all.stream()
+            List<Booking> actBookings = paidBookings.stream()
                     .filter(b -> b.getActivity() != null && b.getActivity().getId().equals(act.getId()))
                     .collect(Collectors.toList());
 
-            // Определяем рабочие часы из тарифного плана
-            int operatingHourStart = 10; // Значение по умолчанию
-            int operatingHourEnd = 24;   // Значение по умолчанию
-            TariffPlan actTp = act.getTariffPlan();
-            if (actTp != null && actTp.getBookingTimeFrom() != null && actTp.getBookingTimeTo() != null) {
-                operatingHourStart = actTp.getBookingTimeFrom().getHour();
-                int toHour = actTp.getBookingTimeTo().getHour();
-                // Если timeTo = 23:59, трактуем как 24
-                operatingHourEnd = (actTp.getBookingTimeTo().getMinute() >= 59 && toHour == 23) ? 24 : (toHour == 0 ? 24 : toHour);
-            }
+            int[] opHours = resolveOperatingHours(act.getTariffPlan());
+            int operatingHourStart = opHours[0];
+            int operatingHourEnd = opHours[1];
+            int limit = Math.max(1, act.getConcurrentLimit() != null ? act.getConcurrentLimit() : 1);
 
-            int limit = act.getConcurrentLimit();
-            int maxConcurrent = 0;
-            double totalConcurrent = 0;
-            int slotCount = 0;
-
-            final int opStart = operatingHourStart;
-            final int opEnd = operatingHourEnd;
-            boolean crossesMidnight = opEnd <= opStart && opEnd != 24;
-
-            // Iterate over each operating hour in the period
-            LocalDateTime cursor = periodStart.toLocalDate().atTime(operatingHourStart, 0);
-            if (cursor.isBefore(periodStart)) cursor = periodStart.withMinute(0).withSecond(0).withNano(0);
-
-            while (cursor.isBefore(periodEnd)) {
-                int hour = cursor.getHour();
-                boolean inOperating;
-                if (crossesMidnight) {
-                    inOperating = hour >= opStart || hour < opEnd;
-                } else {
-                    inOperating = hour >= opStart && hour < opEnd;
-                }
-                if (inOperating) {
-                    LocalDateTime slotStart = cursor;
-                    LocalDateTime slotEnd = cursor.plusHours(1);
-                    // Count bookings overlapping this hour
-                    int concurrent = (int) actBookings.stream()
-                            .filter(b -> b.getStartAt().isBefore(slotEnd) && b.getEndAt().isAfter(slotStart))
-                            .count();
-                    maxConcurrent = Math.max(maxConcurrent, concurrent);
-                    totalConcurrent += concurrent;
-                    slotCount++;
-                }
-                cursor = cursor.plusHours(1);
-                // Skip to next day's operating start if past operating end (only for non-midnight-crossing)
-                if (!crossesMidnight && cursor.getHour() < opStart && cursor.getHour() >= 0) {
-                    cursor = cursor.toLocalDate().atTime(opStart, 0);
-                }
-            }
-
-            double avgConcurrent = slotCount > 0 ? totalConcurrent / slotCount : 0;
+            SlotUtilization slotUtil = computeSlotUtilization(
+                    actBookings, limit, operatingHourStart, operatingHourEnd, periodStart, periodEnd);
 
             Map<String, Object> util = new LinkedHashMap<>();
+            util.put("bookedHours", round(slotUtil.effectiveSlotHours()));
+            util.put("possibleHours", round(slotUtil.possibleSlotHours()));
+            util.put("utilization", round(slotUtil.utilizationPct()));
+            util.put("peakUtilization", round(slotUtil.peakSlotUtilizationPct()));
+            util.put("bookingCount", actBookings.size());
             util.put("concurrentLimit", limit);
-            util.put("avgConcurrent", round(avgConcurrent * 10) / 10.0);
-            util.put("peakConcurrent", maxConcurrent);
-            util.put("avgUtilization", limit > 0 ? round(avgConcurrent / limit * 100) : 0);
-            util.put("peakUtilization", limit > 0 ? round((double) maxConcurrent / limit * 100) : 0);
-            util.put("totalBookings", actBookings.size());
-            resourceUtil.put(act.getName(), util);
+            activityUtil.put(act.getName(), util);
+
+            Map<String, Object> resUtil = new LinkedHashMap<>();
+            resUtil.put("concurrentLimit", limit);
+            resUtil.put("avgConcurrent", round(slotUtil.avgConcurrent()));
+            resUtil.put("peakConcurrent", slotUtil.peakConcurrent());
+            resUtil.put("avgUtilization", round(slotUtil.avgSlotUtilizationPct()));
+            resUtil.put("peakUtilization", round(slotUtil.peakSlotUtilizationPct()));
+            resUtil.put("totalBookings", actBookings.size());
+            resourceUtil.put(act.getName(), resUtil);
         }
+        result.put("activityUtilization", activityUtil);
         result.put("resourceUtilization", resourceUtil);
 
         // Peak hours (count of bookings per hour)
-        Map<Integer, Long> peakHours = all.stream()
+        Map<Integer, Long> peakHours = paidBookings.stream()
                 .collect(Collectors.groupingBy(b -> b.getStartAt().getHour(), Collectors.counting()));
         result.put("peakHours", new TreeMap<>(peakHours));
 
@@ -462,36 +395,26 @@ public class BookingAnalyticsService {
                 .collect(Collectors.groupingBy(b -> b.getStartAt().getDayOfWeek().name(), Collectors.counting()));
         result.put("peakDays", peakDays);
 
-        // Idle coefficient — exclude gap-filler activities (e.g. "Посещение") which inflate capacity unrealistically
+        // Idle coefficient — slot-based (same model as activity utilization), core activities only
         List<Activity> coreActivities = activities.stream()
                 .filter(a -> !Boolean.TRUE.equals(a.getGapFiller()))
                 .collect(Collectors.toList());
-        List<Booking> coreBookings = all.stream()
-                .filter(b -> b.getActivity() != null && !Boolean.TRUE.equals(b.getActivity().getGapFiller()))
-                .collect(Collectors.toList());
-        double totalBookedMinutes = coreBookings.stream().mapToDouble(this::minutes).sum();
-        double totalCapacityMinutes = coreActivities.stream()
-                .mapToDouble(a -> {
-                    double hpd = 14;
-                    TariffPlan atp = a.getTariffPlan();
-                    if (atp != null && atp.getBookingTimeFrom() != null && atp.getBookingTimeTo() != null) {
-                        LocalTime bf = atp.getBookingTimeFrom();
-                        LocalTime bt = atp.getBookingTimeTo();
-                        if (bt.isAfter(bf)) {
-                            hpd = Duration.between(bf, bt).toMinutes() / 60.0;
-                        } else if (bt.isBefore(bf)) {
-                            hpd = (Duration.between(bf, LocalTime.of(23, 59, 59)).toMinutes() + 1 +
-                                   Duration.between(LocalTime.MIDNIGHT, bt).toMinutes()) / 60.0;
-                        } else {
-                            hpd = 24;
-                        }
-                    }
-                    return totalDays * hpd * 60 * a.getConcurrentLimit();
-                })
-                .sum();
-        double idleMinutes = Math.max(0, totalCapacityMinutes - totalBookedMinutes);
-        result.put("idleCoefficient", totalCapacityMinutes > 0 ?
-                round((1 - totalBookedMinutes / totalCapacityMinutes) * 100) : 100);
+        double totalEffectiveSlotHours = 0;
+        double totalPossibleSlotHours = 0;
+        for (Activity act : coreActivities) {
+            List<Booking> actBookings = paidBookings.stream()
+                    .filter(b -> b.getActivity() != null && b.getActivity().getId().equals(act.getId()))
+                    .collect(Collectors.toList());
+            int[] opHours = resolveOperatingHours(act.getTariffPlan());
+            int limit = Math.max(1, act.getConcurrentLimit() != null ? act.getConcurrentLimit() : 1);
+            SlotUtilization slotUtil = computeSlotUtilization(
+                    actBookings, limit, opHours[0], opHours[1], periodStart, periodEnd);
+            totalEffectiveSlotHours += slotUtil.effectiveSlotHours();
+            totalPossibleSlotHours += slotUtil.possibleSlotHours();
+        }
+        double idleMinutes = Math.max(0, (totalPossibleSlotHours - totalEffectiveSlotHours) * 60);
+        result.put("idleCoefficient", totalPossibleSlotHours > 0
+                ? round((1 - totalEffectiveSlotHours / totalPossibleSlotHours) * 100) : 100);
 
         // Gap analysis — exclude gap-filler bookings to measure "natural" gaps
         List<Booking> nonGapFillerBookings = all.stream()
@@ -530,13 +453,13 @@ public class BookingAnalyticsService {
         result.put("autoGapFillCount", gapFillerCount);
 
         // Lost revenue estimation based on actual idle capacity (core activities only)
-        List<Booking> paidBookings = coreBookings.stream()
-                .filter(b -> b.getStatus() == Booking.BookingStatus.PAID)
+        List<Booking> paidCoreBookings = paidBookings.stream()
+                .filter(b -> b.getActivity() != null && !Boolean.TRUE.equals(b.getActivity().getGapFiller()))
                 .collect(Collectors.toList());
         double avgHourlyRate = 0;
-        if (!paidBookings.isEmpty()) {
-            double totalRevenue = paidBookings.stream().mapToDouble(this::amount).sum();
-            double totalHours = paidBookings.stream().mapToDouble(b -> minutes(b) / 60.0).sum();
+        if (!paidCoreBookings.isEmpty()) {
+            double totalRevenue = paidCoreBookings.stream().mapToDouble(this::amount).sum();
+            double totalHours = paidCoreBookings.stream().mapToDouble(b -> minutes(b) / 60.0).sum();
             avgHourlyRate = totalHours > 0 ? totalRevenue / totalHours : 0;
         }
         double idleHours = idleMinutes / 60.0;
@@ -572,21 +495,6 @@ public class BookingAnalyticsService {
                 })
                 .collect(Collectors.toList());
 
-        // Полностью бесплатные: notes содержат "бесплатно" ИЛИ amount == 0
-        List<Booking> fullyFree = allStopCheckBookings.stream()
-                .filter(b -> (b.getTotalAmount() != null && b.getTotalAmount().compareTo(BigDecimal.ZERO) == 0)
-                           || (b.getNotes() != null && b.getNotes().toLowerCase().contains("бесплатно")))
-                .collect(Collectors.toList());
-
-        // Частично бесплатные: не полностью бесплатные
-        List<Booking> partiallyFree = allStopCheckBookings.stream()
-                .filter(b -> !fullyFree.contains(b))
-                .collect(Collectors.toList());
-
-        result.put("triggerCount", allStopCheckBookings.size());
-        result.put("fullyFreeCount", fullyFree.size());
-        result.put("partiallyFreeCount", partiallyFree.size());
-
         // ── 2. Средняя ставка за минуту (из обычных платных gap-fillers, без стоп-чека) ──
         Set<Long> stopCheckBookingIds = allStopCheckBookings.stream()
                 .map(Booking::getId).collect(Collectors.toSet());
@@ -603,24 +511,29 @@ public class BookingAnalyticsService {
             double totalAmt = normalPaidGapFillers.stream().mapToDouble(this::amount).sum();
             avgRatePerMinute = totalMin > 0 ? totalAmt / totalMin : 0;
         }
+        final double observedGapFillerRatePerMinute = avgRatePerMinute;
 
-        // ── 3. Средняя сумма платных gap-fillers до стоп-чека ──
-        //    Для клиентов, у которых сработал стоп-чек: средняя сумма их ПЛАТНЫХ gap-filler бронирований
+        List<Booking> partiallyFree = allStopCheckBookings.stream()
+                .filter(b -> isPartialStopCheck(b, observedGapFillerRatePerMinute))
+                .collect(Collectors.toList());
+        List<Booking> fullyFree = allStopCheckBookings.stream()
+                .filter(b -> !partiallyFree.contains(b))
+                .collect(Collectors.toList());
+
+        result.put("triggerCount", allStopCheckBookings.size());
+        result.put("fullyFreeCount", fullyFree.size());
+        result.put("partiallyFreeCount", partiallyFree.size());
+
+        // ── 3. Средняя сумма до стоп-чека ──
+        //    Считаем оплачиваемую часть до порога stop-check для каждого stop-check события.
         Set<String> stopCheckClientKeys = allStopCheckBookings.stream()
                 .filter(b -> b.getCustomerName() != null)
                 .map(this::clientKey)
                 .collect(Collectors.toSet());
-
-        List<Booking> chargedGapFillersOfStopCheckClients = all.stream()
-                .filter(b -> b.getStatus() == Booking.BookingStatus.PAID)
-                .filter(b -> b.getActivity() != null && Boolean.TRUE.equals(b.getActivity().getGapFiller()))
-                .filter(b -> b.getTotalAmount() != null && b.getTotalAmount().compareTo(BigDecimal.ZERO) > 0)
-                .filter(b -> b.getCustomerName() != null && stopCheckClientKeys.contains(clientKey(b)))
-                .filter(b -> b.getNotes() == null || !b.getNotes().toLowerCase().contains("стоп-чек"))
-                .collect(Collectors.toList());
-
-        double avgAmountBeforeStop = chargedGapFillersOfStopCheckClients.isEmpty() ? 0 :
-                chargedGapFillersOfStopCheckClients.stream().mapToDouble(this::amount).average().orElse(0);
+        double avgAmountBeforeStop = allStopCheckBookings.stream()
+                .mapToDouble(b -> estimatedAmountBeforeStopCheck(b, all, observedGapFillerRatePerMinute))
+                .average()
+                .orElse(0);
         result.put("avgAmountBeforeStopCheck", round(avgAmountBeforeStop));
 
         // ── 4. Средняя длительность бесплатного времени после стоп-чека ──
@@ -2023,7 +1936,7 @@ public class BookingAnalyticsService {
         dashboard.put("volume", getVolumeAnalytics(from, to, restaurantId));
         dashboard.put("revenue", getRevenueAnalytics(from, to, restaurantId));
         dashboard.put("conversion", getConversionAnalytics(from, to, restaurantId));
-        dashboard.put("capacity", getCapacityAnalytics(from, to, restaurantId));
+        dashboard.put("capacity", safeCompute(() -> getCapacityAnalytics(from, to, restaurantId), "capacity"));
         dashboard.put("stopCheck", getStopCheckAnalytics(from, to, restaurantId));
         dashboard.put("tariffs", getTariffAnalytics(from, to, restaurantId));
         dashboard.put("notifications", getNotificationAnalytics(from, to, restaurantId));
@@ -2047,7 +1960,7 @@ public class BookingAnalyticsService {
             dashboard.put("historyVolume", getVolumeAnalytics(historyFrom, historyTo, restaurantId));
             dashboard.put("historyRevenue", getRevenueAnalytics(historyFrom, historyTo, restaurantId));
             dashboard.put("historyConversion", getConversionAnalytics(historyFrom, historyTo, restaurantId));
-            dashboard.put("historyCapacity", getCapacityAnalytics(historyFrom, historyTo, restaurantId));
+            dashboard.put("historyCapacity", safeCompute(() -> getCapacityAnalytics(historyFrom, historyTo, restaurantId), "historyCapacity"));
             dashboard.put("historyTrends", getTrends(historyFrom, historyTo, restaurantId));
             dashboard.put("historyUnitEconomics", safeCompute(() -> getUnitEconomics(historyFrom, historyTo, restaurantId), "historyUnitEconomics"));
             dashboard.put("anomalies", safeComputeList(() -> getAnomalies(historyFrom, historyTo, restaurantId), "anomalies"));
@@ -2084,5 +1997,156 @@ public class BookingAnalyticsService {
 
     private double round(double v) {
         return Math.round(v * 100.0) / 100.0;
+    }
+
+    private boolean isPartialStopCheck(Booking booking, double avgRatePerMinute) {
+        String notes = booking.getNotes() != null ? booking.getNotes().toLowerCase() : "";
+        if (notes.contains("частично")) {
+            return true;
+        }
+        if (booking.getTotalAmount() != null && booking.getTotalAmount().compareTo(BigDecimal.ZERO) > 0) {
+            return true;
+        }
+        double estimatedFullPrice = minutes(booking) * avgRatePerMinute;
+        return avgRatePerMinute > 0 && amount(booking) > 0 && estimatedFullPrice > amount(booking);
+    }
+
+    /**
+     * Amount a customer paid or should have paid before the stop-check threshold.
+     * If the billing event is fully free and no prior paid segment is present, fall back to
+     * threshold minutes × observed gap-filler rate so the KPI still reflects the stop-check rule.
+     */
+    private double estimatedAmountBeforeStopCheck(Booking stopBooking, List<Booking> allBookings, double avgRatePerMinute) {
+        if (stopBooking.getActivity() == null || !Boolean.TRUE.equals(stopBooking.getActivity().getGapFiller())) {
+            return amount(stopBooking);
+        }
+
+        double stopCheckMin = stopBooking.getActivity().getStopCheckHours() != null
+                ? stopBooking.getActivity().getStopCheckHours() * 60
+                : 0;
+
+        double paidSameVisit = allBookings.stream()
+                .filter(b -> b.getStatus() == Booking.BookingStatus.PAID)
+                .filter(b -> b.getActivity() != null && Boolean.TRUE.equals(b.getActivity().getGapFiller()))
+                .filter(b -> b.getCustomerName() != null && stopBooking.getCustomerName() != null)
+                .filter(b -> clientKey(b).equals(clientKey(stopBooking)))
+                .filter(b -> b.getStartAt().toLocalDate().equals(stopBooking.getStartAt().toLocalDate()))
+                .filter(b -> !b.getStartAt().isAfter(stopBooking.getStartAt()))
+                .filter(b -> b.getTotalAmount() != null && b.getTotalAmount().compareTo(BigDecimal.ZERO) > 0)
+                .mapToDouble(this::amount)
+                .sum();
+
+        if (paidSameVisit > 0) {
+            return paidSameVisit;
+        }
+        if (stopCheckMin > 0 && avgRatePerMinute > 0) {
+            return stopCheckMin * avgRatePerMinute;
+        }
+        return amount(stopBooking);
+    }
+
+    /** End of daily operating window; hour 24 means midnight next day (valid for {@link LocalDateTime}). */
+    private static LocalDateTime resolveOperatingWindowEnd(LocalDate day, int operatingHourEnd, boolean crossesMidnight) {
+        if (operatingHourEnd == 24) {
+            return day.plusDays(1).atStartOfDay();
+        }
+        if (crossesMidnight) {
+            return day.plusDays(1).atTime(operatingHourEnd, 0);
+        }
+        return day.atTime(operatingHourEnd, 0);
+    }
+
+    /** Operating hour window from tariff plan: [startHour, endHour). */
+    private int[] resolveOperatingHours(TariffPlan tp) {
+        int operatingHourStart = 10;
+        int operatingHourEnd = 24;
+        if (tp != null && tp.getBookingTimeFrom() != null && tp.getBookingTimeTo() != null) {
+            operatingHourStart = tp.getBookingTimeFrom().getHour();
+            int toHour = tp.getBookingTimeTo().getHour();
+            operatingHourEnd = (tp.getBookingTimeTo().getMinute() >= 59 && toHour == 23) ? 24 : (toHour == 0 ? 24 : toHour);
+        }
+        return new int[]{operatingHourStart, operatingHourEnd};
+    }
+
+    private record SlotUtilization(
+            double effectiveSlotHours,
+            double possibleSlotHours,
+            double peakConcurrent,
+            double avgConcurrent,
+            double peakSlotUtilizationPct,
+            double avgSlotUtilizationPct,
+            double utilizationPct
+    ) {}
+
+    /**
+     * Capacity-aware utilization: walk each operating hour in the period,
+     * count concurrent PAID bookings capped by {@code concurrentLimit}.
+     * Utilization never exceeds 100%.
+     */
+    private SlotUtilization computeSlotUtilization(
+            List<Booking> actBookings,
+            int limit,
+            int operatingHourStart,
+            int operatingHourEnd,
+            LocalDateTime periodStart,
+            LocalDateTime periodEnd
+    ) {
+        boolean crossesMidnight = operatingHourEnd <= operatingHourStart && operatingHourEnd != 24;
+        double effectiveHours = 0;
+        double possibleHours = 0;
+        double peakConcurrent = 0;
+        double sumConcurrent = 0;
+        double peakSlotPct = 0;
+        double sumSlotPct = 0;
+        int slotCount = 0;
+
+        LocalDate day = periodStart.toLocalDate();
+        LocalDate lastDay = periodEnd.toLocalDate();
+
+        while (!day.isAfter(lastDay)) {
+            LocalDateTime windowStart = day.atTime(operatingHourStart, 0);
+            LocalDateTime windowEnd = resolveOperatingWindowEnd(day, operatingHourEnd, crossesMidnight);
+
+            LocalDateTime slotStart = windowStart;
+            while (slotStart.isBefore(windowEnd)) {
+                LocalDateTime slotEnd = slotStart.plusHours(1);
+                if (slotEnd.isAfter(periodStart) && slotStart.isBefore(periodEnd)) {
+                    LocalDateTime effStart = slotStart.isBefore(periodStart) ? periodStart : slotStart;
+                    LocalDateTime effEnd = slotEnd.isAfter(periodEnd) ? periodEnd : slotEnd;
+                    if (effStart.isBefore(effEnd)) {
+                        int concurrent = (int) actBookings.stream()
+                                .filter(b -> b.getStartAt().isBefore(effEnd) && b.getEndAt().isAfter(effStart))
+                                .count();
+                        double used = Math.min(concurrent, limit);
+                        double slotPct = limit > 0 ? Math.min(100.0, used / limit * 100.0) : 0;
+                        effectiveHours += used;
+                        possibleHours += limit;
+                        peakConcurrent = Math.max(peakConcurrent, concurrent);
+                        sumConcurrent += concurrent;
+                        peakSlotPct = Math.max(peakSlotPct, slotPct);
+                        sumSlotPct += slotPct;
+                        slotCount++;
+                    }
+                }
+                slotStart = slotEnd;
+            }
+            day = day.plusDays(1);
+        }
+
+        double utilizationPct = possibleHours > 0
+                ? Math.min(100.0, effectiveHours / possibleHours * 100.0)
+                : 0;
+        double avgConcurrent = slotCount > 0 ? sumConcurrent / slotCount : 0;
+        double avgSlotPct = slotCount > 0 ? Math.min(100.0, sumSlotPct / slotCount) : 0;
+
+        return new SlotUtilization(
+                effectiveHours,
+                possibleHours,
+                peakConcurrent,
+                avgConcurrent,
+                peakSlotPct,
+                avgSlotPct,
+                utilizationPct
+        );
     }
 }

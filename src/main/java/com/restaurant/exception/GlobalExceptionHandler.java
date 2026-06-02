@@ -178,6 +178,15 @@ public class GlobalExceptionHandler {
                 .body(ApiErrorResponse.of(request, HttpStatus.CONFLICT, ex.getApiErrorCode(), ex.getMessage()));
     }
 
+    @ExceptionHandler(IpVerificationLockedException.class)
+    public ResponseEntity<ApiErrorResponse> handleIpVerificationLocked(
+            IpVerificationLockedException ex, HttpServletRequest request) {
+        log.warn("Verification IP lockout: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header("Retry-After", String.valueOf(ex.getRetryAfterSeconds()))
+                .body(ApiErrorResponse.of(request, HttpStatus.TOO_MANY_REQUESTS, ex.getApiErrorCode(), ex.getMessage()));
+    }
+
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiErrorResponse> handleBusinessException(BusinessException ex, HttpServletRequest request) {
         log.warn("Business exception: {}", ex.getMessage());

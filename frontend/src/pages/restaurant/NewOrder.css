@@ -162,7 +162,7 @@
   font-weight: 500;
 }
 
-.btn-add {
+.new-order-page .btn-add {
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -177,7 +177,7 @@
   transition: all 0.2s;
 }
 
-.btn-add:hover {
+.new-order-page .btn-add:hover {
   background: #667eea;
   color: white;
 }
@@ -288,6 +288,57 @@
   margin-top: 0;
   padding-top: 0;
   border-top: none;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.split-mode-right .split-bill {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+  overflow: hidden;
+}
+
+.split-mode-right .split-bill h3 {
+  flex-shrink: 0;
+}
+
+.split-mode-right .split-display {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.split-mode-right .split-form {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  margin-bottom: 0;
+}
+
+.new-order-guest-split-column {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.order-split-footer-warn {
+  margin: 0 0 10px 0;
+  padding: 8px 10px;
+  font-size: 13px;
+  color: #92400e;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 6px;
+  line-height: 1.4;
 }
 
 .order-header {

@@ -2,6 +2,7 @@ package com.restaurant.security;
 
 import com.restaurant.forecast.InternalForecastAuthentication;
 import com.restaurant.model.UserPermission;
+import com.restaurant.tenant.TenantContext;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -30,12 +31,20 @@ public class SecurityUtils {
         if (auth instanceof InternalForecastAuthentication) {
             return ((InternalForecastAuthentication) auth).getPrincipal();
         }
+        Long fromContext = TenantContext.getRestaurantId();
+        if (fromContext != null) {
+            return fromContext;
+        }
         UserPrincipal user = getCurrentUser();
         return user != null ? user.getRestaurantId() : null;
     }
 
     /** Current tenant location id (new hierarchy). Prefer over restaurant id for new code. */
     public static Long getCurrentLocationId() {
+        Long fromContext = TenantContext.getLocationId();
+        if (fromContext != null) {
+            return fromContext;
+        }
         UserPrincipal user = getCurrentUser();
         return user != null ? user.getLocationId() : null;
     }

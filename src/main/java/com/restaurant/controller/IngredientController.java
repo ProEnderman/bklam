@@ -12,7 +12,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -88,6 +90,16 @@ public class IngredientController {
     ) {
         ExcelUploadResponse response = excelUploadService.processIngredientsExcelTemplate(file);
         return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "Download Excel with ingredients catalog (name, unit, min quantity)")
+    @GetMapping(value = "/export-excel", produces = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    public ResponseEntity<byte[]> exportIngredientsExcel() {
+        byte[] body = excelUploadService.exportIngredientsCatalogToExcel();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+        headers.setContentDispositionFormData("attachment", "ingredients.xlsx");
+        return ResponseEntity.ok().headers(headers).body(body);
     }
 }
 

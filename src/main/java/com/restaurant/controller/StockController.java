@@ -91,17 +91,20 @@ public class StockController {
         return ResponseEntity.ok(ingredients);
     }
     
-    @Operation(summary = "Upload Excel file for stock import (columns: name, unit, quantity — same order as export)")
+    @Operation(summary = "Upload Excel for stock IN per row (quantity column = amount to add; not full inventory reconcile)")
     @PostMapping(value = "/upload-excel", consumes = "multipart/form-data")
     public ResponseEntity<ExcelUploadResponse> uploadExcel(
         @RequestParam("file") MultipartFile file,
         @RequestParam(value = "unitMismatchResolutions", required = false) String unitMismatchResolutionsJson,
-        @RequestParam(value = "missingUnitResolutions", required = false) String missingUnitResolutionsJson
+        @RequestParam(value = "missingUnitResolutions", required = false) String missingUnitResolutionsJson,
+        @RequestParam(value = "missingIngredientResolutions", required = false) String missingIngredientResolutionsJson
     ) {
         Map<String, ResolveUnitMismatchRequest> unitMismatchMap = parseUnitMismatchResolutions(unitMismatchResolutionsJson);
         Map<String, com.restaurant.model.Unit> missingUnitMap = parseMissingUnitResolutions(missingUnitResolutionsJson);
-        
-        ExcelUploadResponse response = excelUploadService.processExcelFile(file, unitMismatchMap, missingUnitMap);
+        Map<String, ResolveIngredientMissingRequest> missingIngredientMap = parseIngredientMissingResolutions(missingIngredientResolutionsJson);
+
+        ExcelUploadResponse response = excelUploadService.processExcelFile(
+            file, unitMismatchMap, missingUnitMap, missingIngredientMap);
         return ResponseEntity.ok(response);
     }
 
@@ -146,6 +149,22 @@ public class StockController {
         return result;
     }
     
+    private Map<String, ResolveIngredientMissingRequest> parseIngredientMissingResolutions(String json) {
+        Map<String, ResolveIngredientMissingRequest> result = new HashMap<>();
+        if (json == null || json.isEmpty() || json.equals("{}")) {
+            return result;
+        }
+        try {
+            TypeReference<Map<String, ResolveIngredientMissingRequest>> typeRef =
+                new TypeReference<Map<String, ResolveIngredientMissingRequest>>() {};
+            result = objectMapper.readValue(json, typeRef);
+        } catch (Exception e) {
+            System.err.println("Failed to parse missingIngredientResolutions JSON: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return result;
+    }
+
     private Map<String, com.restaurant.model.Unit> parseMissingUnitResolutions(String json) {
         Map<String, com.restaurant.model.Unit> result = new HashMap<>();
         if (json == null || json.isEmpty() || json.equals("{}")) {

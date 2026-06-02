@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { restaurantService, shiftService, stockService } from '../../api/services'
+import { restaurantService, stockService } from '../../api/services'
 import '../tariffs/BookingAnalytics.css'
 import './DataExport.css'
 
@@ -129,16 +129,6 @@ export default function DataExport() {
               }
             >
               {busy === 'activity' ? '…' : 'Журнал действий CSV'}
-            </button>
-            <button
-              type="button"
-              className="export-action-btn"
-              disabled={!!busy}
-              onClick={() =>
-                run('shifts', () => shiftService.exportShiftsCsvDownload(dateFrom, dateTo))
-              }
-            >
-              {busy === 'shifts' ? '…' : 'Смены CSV'}
             </button>
             <button
               type="button"

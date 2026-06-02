@@ -9,9 +9,10 @@ import com.restaurant.exception.BusinessException;
 import com.restaurant.model.*;
 import com.restaurant.repository.ActivityLogRepository;
 import com.restaurant.repository.DishRepository;
-import com.restaurant.repository.StockMovementRepository;
 import com.restaurant.repository.TariffRuleRepository;
 import com.restaurant.security.SecurityUtils;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Cell;
@@ -27,6 +28,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -45,12 +47,14 @@ public class RestaurantDataExportService {
     private final AnalyticsService analyticsService;
     private final OrderService orderService;
     private final BookingService bookingService;
-    private final StockMovementRepository stockMovementRepository;
     private final ActivityLogRepository activityLogRepository;
     private final ShiftService shiftService;
     private final DishRepository dishRepository;
     private final TariffRuleRepository tariffRuleRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     private static final int ACTIVITY_PAGE = 2000;
     private static final int MAX_ACTIVITY_PAGES = 100;
@@ -487,27 +491,25 @@ public class RestaurantDataExportService {
     private void addStockMovementsSheet(XSSFWorkbook wb, LocalDate from, LocalDate to, Long restaurantId) {
         LocalDateTime fromDt = from != null ? from.atStartOfDay() : LocalDateTime.of(1970, 1, 1, 0, 0);
         LocalDateTime toDt = to != null ? to.atTime(23, 59, 59) : LocalDateTime.of(2099, 12, 31, 23, 59, 59);
-        List<StockMovement> moves = stockMovementRepository.findMovementsWithIngredient(
-                restaurantId, null, null, null, fromDt, toDt);
+        List<StockMovementExportRow> moves = findStockMovementExportRows(restaurantId, fromDt, toDt);
         if (moves.isEmpty()) return;
-        moves.sort(Comparator.comparing(StockMovement::getCreatedAt, Comparator.nullsFirst(Comparator.naturalOrder())));
         XSSFSheet sh = wb.createSheet(safeSheetName("stock_movements"));
         Row h = sh.createRow(0);
         String[] cols = {"id", "created_at", "ingredient_id", "ingredient", "type", "reason", "qty", "order_id", "created_by", "note"};
         for (int i = 0; i < cols.length; i++) h.createCell(i).setCellValue(cols[i]);
         int r = 1;
-        for (StockMovement sm : moves) {
+        for (StockMovementExportRow sm : moves) {
             Row row = sh.createRow(r++);
-            row.createCell(0).setCellValue(sm.getId() != null ? sm.getId() : 0);
-            row.createCell(1).setCellValue(sm.getCreatedAt() != null ? sm.getCreatedAt().toString() : "");
-            row.createCell(2).setCellValue(sm.getIngredient() != null && sm.getIngredient().getId() != null ? sm.getIngredient().getId() : 0);
-            row.createCell(3).setCellValue(sm.getIngredient() != null ? sm.getIngredient().getName() : "");
-            row.createCell(4).setCellValue(sm.getType() != null ? sm.getType().name() : "");
-            row.createCell(5).setCellValue(sm.getReason() != null ? sm.getReason().name() : "");
-            row.createCell(6).setCellValue(sm.getQty());
-            row.createCell(7).setCellValue(sm.getOrderId() != null ? sm.getOrderId() : 0);
-            row.createCell(8).setCellValue(sm.getCreatedBy() != null ? sm.getCreatedBy() : "");
-            row.createCell(9).setCellValue(sm.getNote() != null ? sm.getNote() : "");
+            row.createCell(0).setCellValue(sm.id() != null ? sm.id() : 0);
+            row.createCell(1).setCellValue(sm.createdAt() != null ? sm.createdAt().toString() : "");
+            row.createCell(2).setCellValue(sm.ingredientId() != null ? sm.ingredientId() : 0);
+            row.createCell(3).setCellValue(sm.ingredientName() != null ? sm.ingredientName() : "");
+            row.createCell(4).setCellValue(sm.type() != null ? sm.type() : "");
+            row.createCell(5).setCellValue(sm.reason() != null ? sm.reason() : "");
+            row.createCell(6).setCellValue(sm.qty() != null ? sm.qty().doubleValue() : 0.0);
+            row.createCell(7).setCellValue(sm.orderId() != null ? sm.orderId() : 0);
+            row.createCell(8).setCellValue(sm.createdBy() != null ? sm.createdBy() : "");
+            row.createCell(9).setCellValue(sm.note() != null ? sm.note() : "");
         }
     }
 
@@ -659,38 +661,37 @@ public class RestaurantDataExportService {
         return out;
     }
 
+    @Transactional(readOnly = true)
     public byte[] exportStockMovementsCsv(LocalDate from, LocalDate to) {
         Long restaurantId = SecurityUtils.isHeadAdmin() ? null : SecurityUtils.getCurrentRestaurantId();
         LocalDateTime fromDt = from != null ? from.atStartOfDay() : LocalDateTime.of(1970, 1, 1, 0, 0);
         LocalDateTime toDt = to != null ? to.atTime(23, 59, 59) : LocalDateTime.of(2099, 12, 31, 23, 59, 59);
-        List<StockMovement> moves = stockMovementRepository.findMovementsWithIngredient(
-                restaurantId, null, null, null, fromDt, toDt);
-        moves.sort(Comparator.comparing(StockMovement::getCreatedAt, Comparator.nullsFirst(Comparator.naturalOrder())));
+        List<StockMovementExportRow> moves = findStockMovementExportRows(restaurantId, fromDt, toDt);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         java.io.OutputStreamWriter w = new java.io.OutputStreamWriter(out, StandardCharsets.UTF_8);
         try {
             w.write("\uFEFF");
             w.write("id,created_at,ingredient_id,ingredient_name,type,reason,qty,order_id,created_by,note\n");
-            for (StockMovement sm : moves) {
-                w.write(String.valueOf(sm.getId() != null ? sm.getId() : ""));
+            for (StockMovementExportRow sm : moves) {
+                w.write(String.valueOf(sm.id() != null ? sm.id() : ""));
                 w.write(",");
-                w.write(escapeCsv(sm.getCreatedAt() != null ? sm.getCreatedAt().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) : ""));
+                w.write(escapeCsv(sm.createdAt() != null ? sm.createdAt().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) : ""));
                 w.write(",");
-                w.write(String.valueOf(sm.getIngredient() != null && sm.getIngredient().getId() != null ? sm.getIngredient().getId() : ""));
+                w.write(String.valueOf(sm.ingredientId() != null ? sm.ingredientId() : ""));
                 w.write(",");
-                w.write(escapeCsv(sm.getIngredient() != null ? sm.getIngredient().getName() : ""));
+                w.write(escapeCsv(sm.ingredientName()));
                 w.write(",");
-                w.write(sm.getType() != null ? sm.getType().name() : "");
+                w.write(sm.type() != null ? sm.type() : "");
                 w.write(",");
-                w.write(sm.getReason() != null ? sm.getReason().name() : "");
+                w.write(sm.reason() != null ? sm.reason() : "");
                 w.write(",");
-                w.write(String.valueOf(sm.getQty()));
+                w.write(sm.qty() != null ? sm.qty().toPlainString() : "");
                 w.write(",");
-                w.write(sm.getOrderId() != null ? String.valueOf(sm.getOrderId()) : "");
+                w.write(sm.orderId() != null ? String.valueOf(sm.orderId()) : "");
                 w.write(",");
-                w.write(escapeCsv(sm.getCreatedBy()));
+                w.write(escapeCsv(sm.createdBy()));
                 w.write(",");
-                w.write(escapeCsv(sm.getNote()));
+                w.write(escapeCsv(sm.note()));
                 w.write("\n");
             }
             w.flush();
@@ -698,6 +699,92 @@ public class RestaurantDataExportService {
             throw new BusinessException("stock export failed: " + e.getMessage());
         }
         return out.toByteArray();
+    }
+
+    private record StockMovementExportRow(
+            Long id,
+            LocalDateTime createdAt,
+            Long ingredientId,
+            String ingredientName,
+            String type,
+            String reason,
+            BigDecimal qty,
+            Long orderId,
+            String createdBy,
+            String note
+    ) {}
+
+    private List<StockMovementExportRow> findStockMovementExportRows(
+            Long restaurantId,
+            LocalDateTime fromDt,
+            LocalDateTime toDt
+    ) {
+        String sql = """
+                SELECT
+                    sm.id,
+                    COALESCE(o.paid_at, o.closed_at, o.created_at, sm.created_at) AS effective_created_at,
+                    i.id AS ingredient_id,
+                    i.name AS ingredient_name,
+                    sm.type,
+                    sm.reason,
+                    sm.qty,
+                    sm.order_id,
+                    sm.created_by,
+                    sm.note
+                FROM stock_movements sm
+                JOIN ingredients i ON i.id = sm.ingredient_id
+                LEFT JOIN orders o ON o.id = sm.order_id
+                WHERE (CAST(:restaurantId AS bigint) IS NULL OR i.restaurant_id = CAST(:restaurantId AS bigint))
+                  AND COALESCE(o.paid_at, o.closed_at, o.created_at, sm.created_at) >= CAST(:fromDt AS timestamp)
+                  AND COALESCE(o.paid_at, o.closed_at, o.created_at, sm.created_at) <= CAST(:toDt AS timestamp)
+                ORDER BY effective_created_at ASC, sm.id ASC
+                """;
+
+        @SuppressWarnings("unchecked")
+        List<Object[]> rows = entityManager.createNativeQuery(sql)
+                .setParameter("restaurantId", restaurantId)
+                .setParameter("fromDt", fromDt)
+                .setParameter("toDt", toDt)
+                .getResultList();
+
+        return rows.stream()
+                .map(row -> new StockMovementExportRow(
+                        asLong(row[0]),
+                        asLocalDateTime(row[1]),
+                        asLong(row[2]),
+                        asString(row[3]),
+                        asString(row[4]),
+                        asString(row[5]),
+                        asBigDecimal(row[6]),
+                        asLong(row[7]),
+                        asString(row[8]),
+                        asString(row[9])
+                ))
+                .toList();
+    }
+
+    private Long asLong(Object value) {
+        if (value == null) return null;
+        if (value instanceof Number number) return number.longValue();
+        return Long.valueOf(value.toString());
+    }
+
+    private LocalDateTime asLocalDateTime(Object value) {
+        if (value == null) return null;
+        if (value instanceof LocalDateTime localDateTime) return localDateTime;
+        if (value instanceof Timestamp timestamp) return timestamp.toLocalDateTime();
+        return LocalDateTime.parse(value.toString().replace(" ", "T"));
+    }
+
+    private String asString(Object value) {
+        return value != null ? value.toString() : null;
+    }
+
+    private BigDecimal asBigDecimal(Object value) {
+        if (value == null) return null;
+        if (value instanceof BigDecimal bigDecimal) return bigDecimal;
+        if (value instanceof Number number) return BigDecimal.valueOf(number.doubleValue());
+        return new BigDecimal(value.toString());
     }
 
     public byte[] exportActivityLogCsv(LocalDate from, LocalDate to) {

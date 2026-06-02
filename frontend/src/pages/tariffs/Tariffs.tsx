@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { tariffService, calendarService, tariffModifierService } from '../../api/services'
+import { refreshCsrfToken } from '../../api/client'
 import type { TariffPlan, Calendar, TariffSpecialDateModifier, TariffRule } from '../../api/types'
 import DataTable from '../../components/DataTable'
 import Modal from '../../components/Modal'
@@ -33,6 +34,8 @@ export default function Tariffs() {
   const [templateTimeOverride, setTemplateTimeOverride] = useState(false)
   const [templateTimeFrom, setTemplateTimeFrom] = useState('10:00')
   const [templateTimeTo, setTemplateTimeTo] = useState('22:00')
+  const [saving, setSaving] = useState(false)
+  const saveInFlightRef = useRef(false)
 
   useEffect(() => {
     loadPlans()
@@ -290,6 +293,10 @@ export default function Tariffs() {
   }
 
   const handleSave = async () => {
+    if (saveInFlightRef.current) return
+
+    let savedPlan: TariffPlan | null = null
+
     try {
       if (!formData.name) {
         alert('Пожалуйста, укажите название мероприятия')
@@ -351,6 +358,10 @@ export default function Tariffs() {
         }
       }
 
+      saveInFlightRef.current = true
+      setSaving(true)
+      await refreshCsrfToken()
+
       const dataToSave: any = {
         ...formData,
       }
@@ -360,11 +371,12 @@ export default function Tariffs() {
         dataToSave.calendar = null
       }
       
-      let savedPlan: TariffPlan
       if (editingPlan) {
         savedPlan = await tariffService.updateTariffPlan(editingPlan.id, dataToSave)
       } else {
         savedPlan = await tariffService.createTariffPlan(dataToSave)
+        // Сразу переходим в режим редактирования — повторное Save не создаст дубликат
+        setEditingPlan(savedPlan)
       }
 
       // Создаем/обновляем правила для будней и выходных с временными интервалами
@@ -492,9 +504,22 @@ export default function Tariffs() {
           setModifiers(modifiersMap)
           setShowModifiersModal(true)
         }
+      } else {
+        setEditingPlan(null)
       }
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Не удалось сохранить тарифный план')
+      const apiMsg = error.response?.data?.message
+      const text = error.message || apiMsg || 'Не удалось сохранить тарифный план'
+      if (savedPlan) {
+        alert(
+          `${text}\n\nТарифный план «${savedPlan.name}» уже создан. Нажмите Save ещё раз — будет дозапись правил, новый план не появится.`
+        )
+      } else {
+        alert(text)
+      }
+    } finally {
+      saveInFlightRef.current = false
+      setSaving(false)
     }
   }
 
@@ -502,6 +527,8 @@ export default function Tariffs() {
     if (!editingPlan) return
 
     try {
+      await refreshCsrfToken()
+
       // Преобразуем modifiers в формат для bulk upsert
       const modifiersToSave: Record<string, Record<string, any>> = {}
       Object.values(modifiers).forEach((modifier) => {
@@ -521,17 +548,31 @@ export default function Tariffs() {
         const holidayRules = existingRules.filter((r) => r.ruleType === 'HOLIDAY')
         
         // Удаляем старые правила HOLIDAY для особых дат
+        const deleteErrors: string[] = []
         for (const rule of holidayRules) {
           if (rule.conditions) {
             try {
               const conditions = JSON.parse(rule.conditions)
               if (conditions.date && selectedCalendar.specialDates.includes(conditions.date)) {
-                await tariffService.deleteTariffRule(rule.id)
+                try {
+                  await tariffService.deleteTariffRule(rule.id)
+                } catch (e: any) {
+                  deleteErrors.push(
+                    conditions.date + ': ' + (e.response?.data?.message || e.message || 'ошибка удаления')
+                  )
+                }
               }
-            } catch (e) {
-              // Игнорируем ошибки парсинга
+            } catch {
+              // Игнорируем ошибки парсинга conditions
             }
           }
+        }
+        if (deleteErrors.length > 0) {
+          throw new Error(
+            'Не удалось обновить интервалы для части дат:\n' +
+              deleteErrors.slice(0, 3).join('\n') +
+              (deleteErrors.length > 3 ? `\n…и ещё ${deleteErrors.length - 3}` : '')
+          )
         }
         
         // Создаем новые правила HOLIDAY для дат с интервалами
@@ -571,7 +612,16 @@ export default function Tariffs() {
       loadPlans()
       alert('Модификаторы и интервалы сохранены')
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Не удалось сохранить модификаторы')
+      const apiMsg = error.response?.data?.message
+      const code = error.response?.data?.code
+      const text = error.message || apiMsg || 'Не удалось сохранить модификаторы'
+      if (code === 'ACCESS_DENIED' || apiMsg?.includes('запрещён')) {
+        alert(
+          `${text}\n\nМодификаторы процентов могли уже сохраниться, а интервалы цен — нет. Нажмите «Save Modifiers» ещё раз; если ошибка повторяется, обновите страницу (F5) и войдите снова.`
+        )
+      } else {
+        alert(text)
+      }
     }
   }
 
@@ -797,8 +847,8 @@ export default function Tariffs() {
             <button className="btn-secondary" onClick={() => setShowModal(false)}>
               Cancel
             </button>
-            <button className="btn-primary" onClick={handleSave}>
-              Save
+            <button type="button" className="btn-primary" onClick={handleSave} disabled={saving}>
+              {saving ? 'Сохранение…' : 'Save'}
             </button>
           </div>
         </div>

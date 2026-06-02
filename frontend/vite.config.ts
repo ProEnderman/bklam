@@ -17,11 +17,6 @@ export default defineConfig({
   },
   server: {
     port: 3000,
-    allowedHosts: [
-      '.trycloudflare.com',
-      '.ngrok-free.app',
-      '.ngrok.io',
-    ],
     proxy: {
       // Все /api/* идут в Java; Java сам проксирует /api/forecast в Python с JWT
       '/api': {

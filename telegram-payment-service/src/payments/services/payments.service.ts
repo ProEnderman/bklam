@@ -10,6 +10,7 @@ import { CryptoService } from '../../crypto/crypto.service';
 import { ParserService } from './parser.service';
 import { JOB_SEND_TO_BANK_BOT } from '../../queue/queue.constants';
 import { PaymentsQueueService } from '../../queue/payments-queue.service';
+import { BankBotUsernameResolver } from '../../telegram/services/bank-bot-username.resolver';
 import { PaymentRequestStatus } from '@prisma/client';
 
 @Injectable()
@@ -24,6 +25,7 @@ export class PaymentsService {
     private parserService: ParserService,
     private configService: ConfigService,
     private paymentsQueueService: PaymentsQueueService,
+    private bankBotResolver: BankBotUsernameResolver,
   ) {
     this.bankBotUsername = this.configService.get<string>(
       'BANK_BOT_USERNAME',
@@ -200,6 +202,8 @@ export class PaymentsService {
       include: { paymentLink: true },
     });
 
+    const resolvedBot = await this.bankBotResolver.resolve(restaurantId, userId);
+
     // 6. Queue job (per-account queue for parallelism)
     const queue = this.paymentsQueueService.getQueue(restaurantId);
     await queue.add(
@@ -211,7 +215,7 @@ export class PaymentsService {
         invoiceNumber: invoice.invoiceNumber,
         amount: invoice.amount.toString(),
         currency: invoice.currency,
-        bankBotUsername: session.bankBotUsername || undefined,
+        bankBotUsername: resolvedBot || undefined,
       },
     );
 
@@ -283,6 +287,10 @@ export class PaymentsService {
 
     const restaurantId = pr.user?.restaurantId ?? 'default';
     const queue = this.paymentsQueueService.getQueue(restaurantId);
+    const resolvedBot = await this.bankBotResolver.resolve(
+      pr.user?.restaurantId ?? restaurantId,
+      pr.userId,
+    );
     await queue.add(JOB_SEND_TO_BANK_BOT, {
       paymentRequestId: id,
       sessionId: session.id,
@@ -290,7 +298,7 @@ export class PaymentsService {
       invoiceNumber: pr.invoice.invoiceNumber,
       amount: pr.invoice.amount.toString(),
       currency: pr.invoice.currency,
-      bankBotUsername: session.bankBotUsername || undefined,
+      bankBotUsername: resolvedBot || undefined,
     });
 
     return this.findById(id);
@@ -303,11 +311,10 @@ export class PaymentsService {
     const message = this.buildMessage(pr);
     const encodedMessage = encodeURIComponent(message);
 
-    // Try to get per-user bank bot username
-    const session = await this.prisma.telegramSession.findFirst({
-      where: { userId: pr.userId, revokedAt: null },
-    });
-    const botUsername = session?.bankBotUsername || this.bankBotUsername;
+    const restaurantId = pr.user?.restaurantId ?? 'unknown';
+    const botUsername =
+      (await this.bankBotResolver.resolve(restaurantId, pr.userId)) ||
+      this.bankBotUsername;
 
     return {
       fallbackUrl: `tg://resolve?domain=${botUsername}&text=${encodedMessage}`,

@@ -1,5 +1,8 @@
 -- Portfolio demo: one category and two dishes for "Test Restaurant" (seeded in V13).
 -- Idempotent; safe to re-apply. Used for GET /api/dishes smoke tests on a clean dev DB.
+-- Flyway has no tenant session; temporarily disable RLS on written tables (table owner).
+ALTER TABLE dish_categories DISABLE ROW LEVEL SECURITY;
+ALTER TABLE dishes DISABLE ROW LEVEL SECURITY;
 
 INSERT INTO dish_categories (name, restaurant_id, created_at, updated_at)
 SELECT 'Demo', r.id, now(), now()
@@ -29,3 +32,6 @@ WHERE r.name = 'Test Restaurant'
       SELECT 1 FROM dishes d
       WHERE d.restaurant_id = r.id AND d.name = 'Demo Soup' AND d.is_active = true
   );
+
+ALTER TABLE dish_categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE dishes ENABLE ROW LEVEL SECURITY;

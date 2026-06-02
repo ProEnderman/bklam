@@ -1,6 +1,9 @@
 package com.restaurant.controller;
 
 import com.restaurant.dto.ForecastOrderRow;
+import com.restaurant.dto.ForecastTariffBookingActivityRow;
+import com.restaurant.dto.ForecastTariffBookingRow;
+import com.restaurant.dto.ForecastTariffRevenueRow;
 import com.restaurant.service.ForecastDataService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -33,5 +36,29 @@ public class InternalForecastDataController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         return ResponseEntity.ok(forecastDataService.getOrdersData(from, to));
+    }
+
+    @Operation(summary = "Get daily PAID tariff booking counts for tenant from JWT")
+    @GetMapping("/tariff-bookings")
+    public ResponseEntity<List<ForecastTariffBookingRow>> getTariffBookings(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return ResponseEntity.ok(forecastDataService.getTariffBookingsData(from, to));
+    }
+
+    @Operation(summary = "Get daily PAID tariff booking revenue for tenant from JWT")
+    @GetMapping("/tariff-revenue")
+    public ResponseEntity<List<ForecastTariffRevenueRow>> getTariffRevenue(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return ResponseEntity.ok(forecastDataService.getTariffRevenueData(from, to));
+    }
+
+    @Operation(summary = "Get daily PAID tariff bookings per activity for tenant from JWT")
+    @GetMapping("/tariff-bookings-by-activity")
+    public ResponseEntity<List<ForecastTariffBookingActivityRow>> getTariffBookingsByActivity(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return ResponseEntity.ok(forecastDataService.getTariffBookingsByActivityData(from, to));
     }
 }

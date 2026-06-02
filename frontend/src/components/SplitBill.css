@@ -4,6 +4,13 @@
   border-top: 1px solid #dee2e6;
 }
 
+.order-panel-split-fixed .split-display,
+.order-split-section .split-display {
+  max-height: min(42vh, 360px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .split-bill-hint {
   color: #666;
   font-size: 14px;

@@ -3,6 +3,7 @@ package com.restaurant.service;
 import com.restaurant.dto.ShiftDtos.*;
 import com.restaurant.model.Shift;
 import com.restaurant.model.ShiftTemplate;
+import com.restaurant.model.ShiftTemplateDaySchedule;
 import com.restaurant.model.ShiftSwapRequest;
 import com.restaurant.model.User;
 import com.restaurant.repository.*;
@@ -279,29 +280,61 @@ public class ShiftService {
             .collect(Collectors.toList());
     }
     
+    private static List<ShiftTemplateDaySchedule> normalizeDaySchedules(
+            List<ShiftTemplateDayScheduleDto> raw) {
+        if (raw == null || raw.isEmpty()) {
+            return List.of();
+        }
+        java.util.Map<Integer, ShiftTemplateDaySchedule> byDay = new java.util.LinkedHashMap<>();
+        for (ShiftTemplateDayScheduleDto dto : raw) {
+            if (dto == null || dto.day() == null || dto.startTime() == null || dto.endTime() == null) {
+                continue;
+            }
+            if (dto.day() < 1 || dto.day() > 7) {
+                continue;
+            }
+            byDay.put(dto.day(), new ShiftTemplateDaySchedule(dto.day(), dto.startTime(), dto.endTime()));
+        }
+        return byDay.values().stream()
+            .sorted(java.util.Comparator.comparing(ShiftTemplateDaySchedule::getDay))
+            .toList();
+    }
+
     @Transactional
     public ShiftTemplateDto createShiftTemplate(CreateShiftTemplateRequest request) {
         Long restaurantId = SecurityUtils.getCurrentRestaurantId();
         
         ShiftTemplate template = new ShiftTemplate();
         template.setName(request.name());
-        template.setStartTime(request.startTime());
-        template.setEndTime(request.endTime());
-        
-        if (request.daysOfWeek() != null && !request.daysOfWeek().isEmpty()) {
-            java.util.List<Integer> normalized = request.daysOfWeek().stream()
-                .filter(d -> d != null && d >= 1 && d <= 7)
-                .distinct()
-                .sorted()
-                .collect(java.util.stream.Collectors.toList());
-            template.setDaysOfWeek(new java.util.ArrayList<>(normalized));
+
+        List<ShiftTemplateDaySchedule> daySchedules = normalizeDaySchedules(request.daySchedules());
+        if (!daySchedules.isEmpty()) {
+            template.setDaySchedules(new java.util.ArrayList<>(daySchedules));
+            template.setDaysOfWeek(daySchedules.stream().map(ShiftTemplateDaySchedule::getDay).toList());
             template.setDayOfWeek(null);
-        } else if (request.dayOfWeek() != null) {
-            template.setDayOfWeek(DayOfWeek.of(request.dayOfWeek()));
-            template.setDaysOfWeek(new java.util.ArrayList<>());
+            ShiftTemplateDaySchedule first = daySchedules.get(0);
+            template.setStartTime(first.getStartTime());
+            template.setEndTime(first.getEndTime());
         } else {
-            template.setDayOfWeek(null);
-            template.setDaysOfWeek(new java.util.ArrayList<>());
+            template.setDaySchedules(new java.util.ArrayList<>());
+            template.setStartTime(request.startTime());
+            template.setEndTime(request.endTime());
+
+            if (request.daysOfWeek() != null && !request.daysOfWeek().isEmpty()) {
+                java.util.List<Integer> normalized = request.daysOfWeek().stream()
+                    .filter(d -> d != null && d >= 1 && d <= 7)
+                    .distinct()
+                    .sorted()
+                    .collect(java.util.stream.Collectors.toList());
+                template.setDaysOfWeek(new java.util.ArrayList<>(normalized));
+                template.setDayOfWeek(null);
+            } else if (request.dayOfWeek() != null) {
+                template.setDayOfWeek(DayOfWeek.of(request.dayOfWeek()));
+                template.setDaysOfWeek(new java.util.ArrayList<>());
+            } else {
+                template.setDayOfWeek(null);
+                template.setDaysOfWeek(new java.util.ArrayList<>());
+            }
         }
         
         if (request.shiftType() != null) {
@@ -366,15 +399,33 @@ public class ShiftService {
         LocalDate current = startDate;
         
         while (!current.isAfter(endDate)) {
-            boolean matches = templateMatchesDate(template, current);
-            
+            LocalTime shiftStartTime = template.getStartTime();
+            LocalTime shiftEndTime = template.getEndTime();
+            boolean matches;
+
+            List<ShiftTemplateDaySchedule> daySchedules = template.getDaySchedules();
+            if (daySchedules != null && !daySchedules.isEmpty()) {
+                int isoDay = current.getDayOfWeek().getValue();
+                matches = false;
+                for (ShiftTemplateDaySchedule schedule : daySchedules) {
+                    if (schedule.getDay() != null && schedule.getDay() == isoDay) {
+                        shiftStartTime = schedule.getStartTime();
+                        shiftEndTime = schedule.getEndTime();
+                        matches = true;
+                        break;
+                    }
+                }
+            } else {
+                matches = templateMatchesDate(template, current);
+            }
+
             if (matches) {
                 for (Long employeeId : employeeIds) {
-                    LocalDateTime shiftStart = LocalDateTime.of(current, template.getStartTime());
-                    LocalDateTime shiftEnd = LocalDateTime.of(current, template.getEndTime());
-                    
+                    LocalDateTime shiftStart = LocalDateTime.of(current, shiftStartTime);
+                    LocalDateTime shiftEnd = LocalDateTime.of(current, shiftEndTime);
+
                     // Handle overnight shifts
-                    if (template.getEndTime().isBefore(template.getStartTime())) {
+                    if (shiftEndTime.isBefore(shiftStartTime)) {
                         shiftEnd = shiftEnd.plusDays(1);
                     }
                     

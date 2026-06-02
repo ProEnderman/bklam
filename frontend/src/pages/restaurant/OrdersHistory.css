@@ -2,6 +2,20 @@
   padding: 20px;
 }
 
+.orders-load-error {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #991b1b;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .filters {
   display: flex;
   gap: 20px;

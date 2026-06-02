@@ -44,7 +44,7 @@
 7. Swagger (not enabled with `prod` profile): http://localhost:8080/swagger-ui.html — группа **portfolio** (подмножество API; см. [docs/PORTFOLIO_API.md](docs/PORTFOLIO_API.md)).  
 8. **Metrics (demo):** `curl -sS 'http://localhost:8080/actuator/metrics/http.server.requests' | head` — Micrometer `http.server.requests` (or filter by `tag:uri` in a full JSON viewer). Tag `application` is set to `spring.application.name`.
 
-**Демо-логины** (из миграций V13+): ресторан *Test Restaurant*; `admin@gmail.com` / `admin123` (роль ADMIN). HEAD_ADMIN — см. `V13` / `V15` в `db/migration`.
+**Демо-логины**: HEAD_ADMIN — см. `V15` / `TEST_ACCOUNTS.md`. Админ ресторана из V13 (`admin@gmail.com`) по умолчанию **неактивен** (V93); создайте ADMIN через платформу или активируйте пользователя в БД для `admin123`.
 
 **Postman-коллекция:** [docs/collections/rms-portfolio.postman_collection.json](docs/collections/rms-portfolio.postman_collection.json) — импорт в Postman или аналог.  
 

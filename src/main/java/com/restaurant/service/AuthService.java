@@ -15,8 +15,10 @@ import com.restaurant.repository.UserRepository;
 import com.restaurant.repository.VerificationCodeRepository;
 import com.restaurant.security.JwtTokenProvider;
 import com.restaurant.security.UserPrincipal;
+import com.restaurant.util.AuthInputNormalizer;
 import com.restaurant.util.LogSanitizer;
 import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
@@ -47,6 +49,7 @@ public class AuthService {
     private final ActivityLogService activityLogService;
     private final org.springframework.jdbc.core.JdbcTemplate platformJdbcTemplate;
     private final BusinessMetrics businessMetrics;
+    private final VerificationIpLockoutService verificationIpLockoutService;
 
     public AuthService(
             UserRepository userRepository,
@@ -58,7 +61,8 @@ public class AuthService {
             ActivityLogService activityLogService,
             @org.springframework.beans.factory.annotation.Qualifier("platformJdbcTemplate")
             org.springframework.jdbc.core.JdbcTemplate platformJdbcTemplate,
-            BusinessMetrics businessMetrics) {
+            BusinessMetrics businessMetrics,
+            VerificationIpLockoutService verificationIpLockoutService) {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.verificationCodeRepository = verificationCodeRepository;
@@ -68,14 +72,24 @@ public class AuthService {
         this.activityLogService = activityLogService;
         this.platformJdbcTemplate = platformJdbcTemplate;
         this.businessMetrics = businessMetrics;
+        this.verificationIpLockoutService = verificationIpLockoutService;
     }
     
     @Transactional
-    public String requestVerificationCode(LoginRequest request) {
+    public String requestVerificationCode(LoginRequest request, HttpServletRequest httpRequest) {
+        String clientIp = verificationIpLockoutService.resolveClientIp(httpRequest);
+        verificationIpLockoutService.assertNotLocked(clientIp);
+        String loginId = AuthInputNormalizer.normalizeLoginIdentifierForLookup(request.email());
+        if (loginId == null) {
+            businessMetrics.incrementAuthFailure();
+            auditAuthCredentialsFailure("invalid_input", "MALFORMED_IDENTIFIER");
+            throw new BusinessException("Invalid email or password");
+        }
+        String password = AuthInputNormalizer.stripNulCharsFromPassword(request.password());
         try {
-            log.debug("Requesting verification code for email: {}", request.email());
+            log.debug("Requesting verification code for email: {}", loginId);
             Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.email(), request.password())
+                new UsernamePasswordAuthenticationToken(loginId, password)
             );
             
             UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
@@ -89,20 +103,20 @@ public class AuthService {
             return challengeId;
         } catch (org.springframework.security.authentication.BadCredentialsException e) {
             businessMetrics.incrementAuthFailure();
-            auditAuthCredentialsFailure(request.email(), "BAD_CREDENTIALS");
-            log.error("Bad credentials for email: {}", request.email(), e);
+            auditAuthCredentialsFailure(loginId, "BAD_CREDENTIALS");
+            log.error("Bad credentials for email: {}", loginId, e);
             throw new BusinessException("Invalid email or password");
         } catch (org.springframework.security.core.userdetails.UsernameNotFoundException e) {
             businessMetrics.incrementAuthFailure();
-            auditAuthCredentialsFailure(request.email(), "USER_NOT_FOUND");
-            log.error("User not found for email: {}", request.email(), e);
+            auditAuthCredentialsFailure(loginId, "USER_NOT_FOUND");
+            log.error("User not found for email: {}", loginId, e);
             throw new BusinessException("Invalid email or password");
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
             businessMetrics.incrementAuthFailure();
-            auditAuthCredentialsFailure(request.email(), "ERROR");
-            log.error("Error requesting verification code for email: {}", request.email(), e);
+            auditAuthCredentialsFailure(loginId, "ERROR");
+            log.error("Error requesting verification code for email: {}", loginId, e);
             // Показываем более детальную ошибку для отладки
             String errorMessage = e.getMessage() != null ? e.getMessage() : "Failed to request verification code";
             throw new BusinessException("Failed to request verification code: " + errorMessage);
@@ -110,13 +124,21 @@ public class AuthService {
     }
     
     @Transactional
-    public AuthResponse verifyCodeAndLogin(String challengeId, String code, HttpServletResponse response) {
+    public AuthResponse verifyCodeAndLogin(
+            String challengeId, String code, HttpServletResponse response, HttpServletRequest httpRequest) {
+        String clientIp = verificationIpLockoutService.resolveClientIp(httpRequest);
+        verificationIpLockoutService.assertNotLocked(clientIp);
+        String normalizedChallenge = AuthInputNormalizer.normalizeChallengeId(challengeId);
+        if (normalizedChallenge == null) {
+            businessMetrics.incrementAuthFailure();
+            throw new BusinessException("Invalid or expired challenge");
+        }
         try {
-            log.debug("Verifying code for challengeId: {}", challengeId);
-            
+            log.debug("Verifying code for challengeId: {}", normalizedChallenge);
+
             // Получаем challenge до проверки кода, чтобы иметь доступ к пользователю
             com.restaurant.model.VerificationCode verificationCode = verificationCodeRepository
-                .findByChallengeIdAndUsedFalse(challengeId)
+                .findByChallengeIdAndUsedFalse(normalizedChallenge)
                 .orElseThrow(() -> new BusinessException("Invalid or expired challenge"));
             
             // Сохраняем пользователя до проверки кода
@@ -125,7 +147,7 @@ public class AuthService {
             // Проверяем код подтверждения по challenge_id (БЕЗ повторной проверки пароля)
             // verifyCode выбрасывает BusinessException с детальным сообщением при ошибке
             // и помечает код как used при успехе
-            verificationCodeService.verifyCode(challengeId, code);
+            verificationCodeService.verifyCode(normalizedChallenge, code);
             
             // Аутентифицируем пользователя
             UserPrincipal userPrincipal = UserPrincipal.create(user);
@@ -213,13 +235,17 @@ public class AuthService {
 
             businessMetrics.incrementAuthSuccess();
             auditLoginSuccess(user);
+            verificationIpLockoutService.clearFailures(clientIp);
             return responseObj;
         } catch (BusinessException e) {
             businessMetrics.incrementAuthFailure();
+            if (e.getMessage() != null && e.getMessage().startsWith("Invalid verification code")) {
+                verificationIpLockoutService.recordWrongVerificationCode(clientIp);
+            }
             throw e;
         } catch (Exception e) {
             businessMetrics.incrementAuthFailure();
-            log.error("Error verifying code for challengeId: {}", challengeId, e);
+            log.error("Error verifying code for challengeId: {}", normalizedChallenge, e);
             throw new BusinessException("Failed to verify code");
         }
     }
@@ -235,9 +261,15 @@ public class AuthService {
         // В будущем этот метод должен быть удален
         try {
             log.warn("Using deprecated verifyCodeAndLogin method for email: {}", loginRequest.email());
-            
+
+            String loginId = AuthInputNormalizer.normalizeLoginIdentifierForLookup(loginRequest.email());
+            if (loginId == null) {
+                throw new BusinessException("Invalid email or password");
+            }
+            String password = AuthInputNormalizer.stripNulCharsFromPassword(loginRequest.password());
+
             authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(loginRequest.email(), loginRequest.password())
+                new UsernamePasswordAuthenticationToken(loginId, password)
             );
             
             // Проверяем учетные данные (для обратной совместимости)

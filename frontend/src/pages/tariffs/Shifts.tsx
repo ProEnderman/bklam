@@ -32,6 +32,13 @@ const JAVA_DAY_TO_ISO: Record<string, number> = {
 }
 
 function formatTemplateDaysLabel(t: ShiftTemplate): string {
+  if (t.daySchedules && t.daySchedules.length > 0) {
+    return t.daySchedules
+      .slice()
+      .sort((a, b) => a.day - b.day)
+      .map((s) => `${ISO_DAY_SHORT[s.day] || s.day} ${s.startTime}–${s.endTime}`)
+      .join(', ')
+  }
   if (t.daysOfWeek && t.daysOfWeek.length > 0) {
     return t.daysOfWeek
       .slice()
@@ -44,6 +51,32 @@ function formatTemplateDaysLabel(t: ShiftTemplate): string {
     return iso ? ISO_DAY_SHORT[iso] : t.dayOfWeek
   }
   return 'Все дни'
+}
+
+type TemplateDayRow = {
+  day: number
+  enabled: boolean
+  startTime: string
+  endTime: string
+}
+
+const DEFAULT_TEMPLATE_DAY_ROWS: TemplateDayRow[] = [1, 2, 3, 4, 5, 6, 7].map((day) => ({
+  day,
+  enabled: false,
+  startTime: '09:00',
+  endTime: '17:00',
+}))
+
+function createDefaultTemplateForm() {
+  return {
+    name: '',
+    scheduleMode: 'uniform' as 'uniform' | 'per-day',
+    startTime: '09:00',
+    endTime: '17:00',
+    selectedDays: [] as number[],
+    dayRows: DEFAULT_TEMPLATE_DAY_ROWS.map((r) => ({ ...r })),
+    shiftType: 'REGULAR',
+  }
 }
 
 interface ShiftFormData {
@@ -74,6 +107,7 @@ export default function Shifts() {
   const [showQuickAddModal, setShowQuickAddModal] = useState(false)
   const [editingShift, setEditingShift] = useState<Shift | null>(null)
   const [, setSelectedCell] = useState<{ date: Date; employeeId: number } | null>(null)
+  const [selectedTemplateEmployeeId, setSelectedTemplateEmployeeId] = useState<number | ''>('')
 
   const [formData, setFormData] = useState<ShiftFormData>({
     employeeId: null,
@@ -83,14 +117,7 @@ export default function Shifts() {
     comment: '',
   })
 
-  const [templateForm, setTemplateForm] = useState({
-    name: '',
-    startTime: '09:00',
-    endTime: '17:00',
-    /** ISO 1–7; пусто = шаблон на любой день недели */
-    selectedDays: [] as number[],
-    shiftType: 'REGULAR',
-  })
+  const [templateForm, setTemplateForm] = useState(createDefaultTemplateForm)
 
   // Week days array
   const weekDays = useMemo(() => {
@@ -130,6 +157,22 @@ export default function Shifts() {
   useEffect(() => {
     loadData()
   }, [currentWeekStart])
+
+  useEffect(() => {
+    if (employees.length === 0) {
+      if (selectedTemplateEmployeeId !== '') {
+        setSelectedTemplateEmployeeId('')
+      }
+      return
+    }
+
+    const employeeStillAvailable =
+      selectedTemplateEmployeeId !== '' && employees.some((employee) => employee.id === selectedTemplateEmployeeId)
+
+    if (!employeeStillAvailable) {
+      setSelectedTemplateEmployeeId(employees[0].id)
+    }
+  }, [employees, selectedTemplateEmployeeId])
 
   const loadData = async () => {
     setLoading(true)
@@ -270,29 +313,51 @@ export default function Shifts() {
   }
 
   const handleCreateTemplate = async () => {
-    if (!templateForm.name || !templateForm.startTime || !templateForm.endTime) {
-      alert('Заполните название и время')
+    if (!templateForm.name.trim()) {
+      alert('Укажите название шаблона')
       return
     }
+
     try {
       const body: CreateShiftTemplateRequest = {
-        name: templateForm.name,
-        startTime: templateForm.startTime,
-        endTime: templateForm.endTime,
-        shiftType: templateForm.shiftType as ShiftType,
-      }
-      if (templateForm.selectedDays.length > 0) {
-        body.daysOfWeek = [...templateForm.selectedDays].sort((a, b) => a - b)
-      }
-      await shiftService.createShiftTemplate(body)
-      setShowTemplateModal(false)
-      setTemplateForm({
-        name: '',
+        name: templateForm.name.trim(),
         startTime: '09:00',
         endTime: '17:00',
-        selectedDays: [],
-        shiftType: 'REGULAR',
-      })
+        shiftType: templateForm.shiftType as ShiftType,
+      }
+
+      if (templateForm.scheduleMode === 'per-day') {
+        const daySchedules = templateForm.dayRows
+          .filter((r) => r.enabled)
+          .map((r) => ({ day: r.day, startTime: r.startTime, endTime: r.endTime }))
+        if (daySchedules.length === 0) {
+          alert('Отметьте хотя бы один день и укажите время')
+          return
+        }
+        for (const s of daySchedules) {
+          if (!s.startTime || !s.endTime) {
+            alert('Заполните время начала и конца для каждого выбранного дня')
+            return
+          }
+        }
+        body.daySchedules = daySchedules
+        body.startTime = daySchedules[0].startTime
+        body.endTime = daySchedules[0].endTime
+      } else {
+        if (!templateForm.startTime || !templateForm.endTime) {
+          alert('Заполните время начала и конца')
+          return
+        }
+        body.startTime = templateForm.startTime
+        body.endTime = templateForm.endTime
+        if (templateForm.selectedDays.length > 0) {
+          body.daysOfWeek = [...templateForm.selectedDays].sort((a, b) => a - b)
+        }
+      }
+
+      await shiftService.createShiftTemplate(body)
+      setShowTemplateModal(false)
+      setTemplateForm(createDefaultTemplateForm())
       loadData()
     } catch (error: any) {
       alert(error.response?.data?.message || 'Не удалось создать шаблон')
@@ -314,15 +379,8 @@ export default function Shifts() {
       alert('Нет сотрудников для назначения')
       return
     }
-    const employeeId = prompt(
-      'Введите ID сотрудника:\n' +
-        employees.map(e => `${e.id}: ${e.firstName || ''} ${e.lastName || ''} (${e.username})`).join('\n')
-    )
-    if (!employeeId) return
-
-    const empId = parseInt(employeeId)
-    if (!employees.find(e => e.id === empId)) {
-      alert('Сотрудник не найден')
+    if (!selectedTemplateEmployeeId) {
+      alert('Выберите сотрудника для применения шаблона')
       return
     }
 
@@ -334,7 +392,7 @@ export default function Shifts() {
         template.id,
         currentWeekStart.toISOString().split('T')[0],
         weekEnd.toISOString().split('T')[0],
-        [empId]
+        [selectedTemplateEmployeeId]
       )
       loadData()
     } catch (error: any) {
@@ -435,7 +493,10 @@ export default function Shifts() {
       </div>
 
       {loading ? (
-        <div className="loading-spinner">Загрузка...</div>
+        <div className="shifts-loading" role="status" aria-live="polite">
+          <div className="shifts-loading-spinner" aria-hidden="true" />
+          <p>Загрузка...</p>
+        </div>
       ) : employees.length === 0 ? (
         <div className="no-employees">
           <p>Нет сотрудников для отображения</p>
@@ -712,6 +773,27 @@ export default function Shifts() {
         <div className="templates-container">
           <div className="templates-list">
             <h4>Существующие шаблоны</h4>
+            <label className="template-employee-picker">
+              <span>Применить шаблон к сотруднику:</span>
+              <select
+                value={selectedTemplateEmployeeId}
+                onChange={(e) => setSelectedTemplateEmployeeId(e.target.value ? Number(e.target.value) : '')}
+                disabled={employees.length === 0}
+              >
+                {employees.length === 0 ? (
+                  <option value="">Нет сотрудников</option>
+                ) : (
+                  employees.map((employee) => (
+                    <option key={employee.id} value={employee.id}>
+                      {employee.firstName || employee.lastName
+                        ? `${employee.firstName || ''} ${employee.lastName || ''}`.trim()
+                        : employee.username}
+                      {employee.username ? ` (${employee.username})` : ''}
+                    </option>
+                  ))
+                )}
+              </select>
+            </label>
             {templates.length === 0 ? (
               <p className="no-templates">Нет шаблонов</p>
             ) : (
@@ -720,14 +802,19 @@ export default function Shifts() {
                   <div className="template-info">
                     <span className="template-name">{template.name}</span>
                     <span className="template-time">
-                      {template.startTime} - {template.endTime}
+                      {template.daySchedules?.length
+                        ? formatTemplateDaysLabel(template)
+                        : `${template.startTime} - ${template.endTime}`}
                     </span>
-                    <span className="template-day">{formatTemplateDaysLabel(template)}</span>
+                    {!(template.daySchedules?.length) && (
+                      <span className="template-day">{formatTemplateDaysLabel(template)}</span>
+                    )}
                   </div>
                   <div className="template-actions">
                     <button
                       className="btn-small btn-primary"
                       onClick={() => applyTemplate(template)}
+                      disabled={!selectedTemplateEmployeeId}
                     >
                       Применить
                     </button>
@@ -755,83 +842,201 @@ export default function Shifts() {
                 required
               />
             </label>
-            <div className="form-row time-row">
-              <label>
-                <span>Начало:</span>
-                <input
-                  type="time"
-                  value={templateForm.startTime}
-                  onChange={(e) => setTemplateForm({ ...templateForm, startTime: e.target.value })}
-                  required
-                />
-              </label>
-              <label>
-                <span>Конец:</span>
-                <input
-                  type="time"
-                  value={templateForm.endTime}
-                  onChange={(e) => setTemplateForm({ ...templateForm, endTime: e.target.value })}
-                  required
-                />
-              </label>
-            </div>
-            <div className="template-days-block">
-              <span className="template-days-label">Дни недели (можно несколько):</span>
-              <p className="template-days-hint">
-                Не отмечайте ни одного дня — шаблон подойдёт на любой день. Иначе смены создаются только в выбранные дни
-                (удобно разделить будни и выходные).
-              </p>
+            <div className="template-schedule-mode">
+              <span className="template-days-label">Режим расписания:</span>
               <div className="template-day-presets">
                 <button
                   type="button"
-                  className="btn-small"
-                  onClick={() => setTemplateForm({ ...templateForm, selectedDays: [1, 2, 3, 4, 5] })}
+                  className={`btn-small${templateForm.scheduleMode === 'uniform' ? ' active' : ''}`}
+                  onClick={() => setTemplateForm({ ...templateForm, scheduleMode: 'uniform' })}
                 >
-                  Будни
+                  Одно время для дней
                 </button>
                 <button
                   type="button"
-                  className="btn-small"
-                  onClick={() => setTemplateForm({ ...templateForm, selectedDays: [6, 7] })}
+                  className={`btn-small${templateForm.scheduleMode === 'per-day' ? ' active' : ''}`}
+                  onClick={() => setTemplateForm({ ...templateForm, scheduleMode: 'per-day' })}
                 >
-                  Выходные
+                  Разное время по дням
                 </button>
-                <button
-                  type="button"
-                  className="btn-small"
-                  onClick={() => setTemplateForm({ ...templateForm, selectedDays: [1, 2, 3, 4, 5, 6, 7] })}
-                >
-                  Вся неделя
-                </button>
-                <button
-                  type="button"
-                  className="btn-small"
-                  onClick={() => setTemplateForm({ ...templateForm, selectedDays: [] })}
-                >
-                  Любой день
-                </button>
-              </div>
-              <div className="template-day-checkboxes">
-                {[1, 2, 3, 4, 5, 6, 7].map((d) => (
-                  <label key={d} className="template-day-chip">
-                    <input
-                      type="checkbox"
-                      checked={templateForm.selectedDays.includes(d)}
-                      onChange={() => {
-                        const has = templateForm.selectedDays.includes(d)
-                        setTemplateForm({
-                          ...templateForm,
-                          selectedDays: has
-                            ? templateForm.selectedDays.filter((x) => x !== d)
-                            : [...templateForm.selectedDays, d].sort((a, b) => a - b),
-                        })
-                      }}
-                    />
-                    {ISO_DAY_SHORT[d]}
-                  </label>
-                ))}
               </div>
             </div>
+
+            {templateForm.scheduleMode === 'uniform' ? (
+              <>
+                <div className="form-row time-row">
+                  <label>
+                    <span>Начало:</span>
+                    <input
+                      type="time"
+                      value={templateForm.startTime}
+                      onChange={(e) => setTemplateForm({ ...templateForm, startTime: e.target.value })}
+                      required
+                    />
+                  </label>
+                  <label>
+                    <span>Конец:</span>
+                    <input
+                      type="time"
+                      value={templateForm.endTime}
+                      onChange={(e) => setTemplateForm({ ...templateForm, endTime: e.target.value })}
+                      required
+                    />
+                  </label>
+                </div>
+                <div className="template-days-block">
+                  <span className="template-days-label">Дни недели (можно несколько):</span>
+                  <p className="template-days-hint">
+                    Не отмечайте ни одного дня — шаблон подойдёт на любой день. Иначе смены создаются только в
+                    выбранные дни.
+                  </p>
+                  <div className="template-day-presets">
+                    <button
+                      type="button"
+                      className="btn-small"
+                      onClick={() => setTemplateForm({ ...templateForm, selectedDays: [1, 2, 3, 4, 5] })}
+                    >
+                      Будни
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-small"
+                      onClick={() => setTemplateForm({ ...templateForm, selectedDays: [6, 7] })}
+                    >
+                      Выходные
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-small"
+                      onClick={() =>
+                        setTemplateForm({ ...templateForm, selectedDays: [1, 2, 3, 4, 5, 6, 7] })
+                      }
+                    >
+                      Вся неделя
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-small"
+                      onClick={() => setTemplateForm({ ...templateForm, selectedDays: [] })}
+                    >
+                      Любой день
+                    </button>
+                  </div>
+                  <div className="template-day-checkboxes">
+                    {[1, 2, 3, 4, 5, 6, 7].map((d) => (
+                      <label key={d} className="template-day-chip">
+                        <input
+                          type="checkbox"
+                          checked={templateForm.selectedDays.includes(d)}
+                          onChange={() => {
+                            const has = templateForm.selectedDays.includes(d)
+                            setTemplateForm({
+                              ...templateForm,
+                              selectedDays: has
+                                ? templateForm.selectedDays.filter((x) => x !== d)
+                                : [...templateForm.selectedDays, d].sort((a, b) => a - b),
+                            })
+                          }}
+                        />
+                        {ISO_DAY_SHORT[d]}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="template-days-block">
+                <span className="template-days-label">Расписание по дням:</span>
+                <p className="template-days-hint">
+                  Отметьте дни и укажите время для каждого. Например: пн 9:00–15:00, вт 9:00–14:00 и т.д.
+                </p>
+                <div className="template-day-presets">
+                  <button
+                    type="button"
+                    className="btn-small"
+                    onClick={() =>
+                      setTemplateForm({
+                        ...templateForm,
+                        dayRows: templateForm.dayRows.map((r) =>
+                          r.day <= 4 ? { ...r, enabled: true } : { ...r, enabled: false }
+                        ),
+                      })
+                    }
+                  >
+                    Пн–Чт
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-small"
+                    onClick={() =>
+                      setTemplateForm({
+                        ...templateForm,
+                        dayRows: templateForm.dayRows.map((r) =>
+                          r.day <= 5 ? { ...r, enabled: true } : { ...r, enabled: false }
+                        ),
+                      })
+                    }
+                  >
+                    Будни
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-small"
+                    onClick={() =>
+                      setTemplateForm({
+                        ...templateForm,
+                        dayRows: templateForm.dayRows.map((r) => ({ ...r, enabled: false })),
+                      })
+                    }
+                  >
+                    Сбросить
+                  </button>
+                </div>
+                <div className="template-day-schedule-table">
+                  <div className="template-day-schedule-header">
+                    <span>День</span>
+                    <span>Начало</span>
+                    <span>Конец</span>
+                  </div>
+                  {templateForm.dayRows.map((row, idx) => (
+                    <div key={row.day} className="template-day-schedule-row">
+                      <label className="template-day-schedule-day">
+                        <input
+                          type="checkbox"
+                          checked={row.enabled}
+                          onChange={() => {
+                            const dayRows = [...templateForm.dayRows]
+                            dayRows[idx] = { ...row, enabled: !row.enabled }
+                            setTemplateForm({ ...templateForm, dayRows })
+                          }}
+                        />
+                        {ISO_DAY_SHORT[row.day]}
+                      </label>
+                      <input
+                        type="time"
+                        value={row.startTime}
+                        disabled={!row.enabled}
+                        onChange={(e) => {
+                          const dayRows = [...templateForm.dayRows]
+                          dayRows[idx] = { ...row, startTime: e.target.value }
+                          setTemplateForm({ ...templateForm, dayRows })
+                        }}
+                      />
+                      <input
+                        type="time"
+                        value={row.endTime}
+                        disabled={!row.enabled}
+                        onChange={(e) => {
+                          const dayRows = [...templateForm.dayRows]
+                          dayRows[idx] = { ...row, endTime: e.target.value }
+                          setTemplateForm({ ...templateForm, dayRows })
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <label>
               <span>Тип смены:</span>
               <select

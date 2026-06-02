@@ -11,14 +11,13 @@ import { fmt, fmtRub, fmtRubFull, pct, sorted } from './utils/analytics'
 // Collapsible detailed views with search, sort, pagination
 // ═══════════════════════════════════════════════════
 
-type DeepTab = 'clients' | 'daily' | 'tariffs' | 'rfm' | 'notifications'
+type DeepTab = 'clients' | 'daily' | 'tariffs' | 'rfm'
 
 const TABS: { key: DeepTab; label: string; icon: string }[] = [
   { key: 'clients', label: 'Клиенты', icon: '👥' },
   { key: 'daily', label: 'По дням', icon: '📅' },
   { key: 'tariffs', label: 'Тарифы', icon: '🏷' },
   { key: 'rfm', label: 'RFM', icon: '🎯' },
-  { key: 'notifications', label: 'Уведомления', icon: '🔔' },
 ]
 
 function ClientsDeep({ data }: { data: any }) {
@@ -195,44 +194,6 @@ function RfmDeep({ data }: { data: any }) {
   )
 }
 
-function NotificationsDeep({ data }: { data: any }) {
-  const { notifications } = data
-  const byType = notifications?.byType || {}
-  const overdueByClient = notifications?.overdueByClient || {}
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
-        <KPICard compact title="Всего" value={fmt(notifications?.total)} severity="neutral" />
-        <KPICard compact title="Ожидают" value={fmt(notifications?.pending)} severity={notifications?.pending > 10 ? 'warning' : 'neutral'} />
-        <KPICard compact title="Решено" value={fmt(notifications?.resolved)} severity="healthy" />
-        <KPICard compact title="Ср. реакция" value={`${fmt(notifications?.avgReactionMinutes)} мин`} severity="neutral" />
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-        <Section title="По типу">
-          <BarChart data={Object.entries(byType)} formatValue={fmt} showExpand={false} />
-        </Section>
-        <Section title="Конверсия уведомлений">
-          <DataTable compact searchable={false} columns={[
-            { key: 'type', label: 'Тип' },
-            { key: 'total', label: 'Всего', align: 'right' },
-            { key: 'converted', label: 'Конвертировано', align: 'right' },
-            { key: 'rate', label: '%', align: 'right' },
-          ]} data={[
-            { type: 'REMINDER → Подтверждено', total: notifications?.reminderTotal, converted: notifications?.reminderConfirmed, rate: pct(notifications?.reminderConfirmedPct) },
-            { type: 'OVERDUE → Оплачено', total: notifications?.overdueTotal, converted: notifications?.overduePaid, rate: pct(notifications?.overduePaidPct) },
-          ]} pageSize={5} />
-        </Section>
-      </div>
-
-      <Section title="Просрочки по клиентам" defaultOpen={false}>
-        <BarChart data={sorted(overdueByClient)} formatValue={fmt} />
-      </Section>
-    </div>
-  )
-}
-
 export default function DeepAnalysisLayer() {
   const { data } = useAnalytics()
   const [tab, setTab] = useState<DeepTab>('clients')
@@ -260,7 +221,6 @@ export default function DeepAnalysisLayer() {
       {tab === 'daily' && <DailyDeep data={data} />}
       {tab === 'tariffs' && <TariffsDeep data={data} />}
       {tab === 'rfm' && <RfmDeep data={data} />}
-      {tab === 'notifications' && <NotificationsDeep data={data} />}
     </div>
   )
 }

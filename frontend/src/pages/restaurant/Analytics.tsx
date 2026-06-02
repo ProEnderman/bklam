@@ -2,22 +2,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { restaurantService } from '../../api/services'
 import '../tariffs/BookingAnalytics.css'
 
-type Tab = 'overview' | 'products' | 'employees' | 'time' | 'tariffs'
+type Tab = 'overview' | 'products' | 'employees' | 'time'
 
 const TABS: { key: Tab; label: string; icon: string }[] = [
   { key: 'overview', label: 'Обзор', icon: '🎯' },
   { key: 'products', label: 'Товары', icon: '📦' },
   { key: 'employees', label: 'Сотрудники', icon: '👤' },
   { key: 'time', label: 'Динамика', icon: '📅' },
-  { key: 'tariffs', label: 'Тарифы (брони)', icon: '🎫' },
 ]
-
-const RULE_TYPE_RU: Record<string, string> = {
-  STANDARD: 'Стандарт',
-  WEEKEND: 'Выходной',
-  HOLIDAY: 'Праздник',
-  SPECIAL: 'Спецтариф',
-}
 
 function asNestedMap(obj: unknown): Record<string, Record<string, number>> {
   if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return {}
@@ -47,6 +39,10 @@ function fmt(n: number | undefined | null, decimals = 2): string {
 function fmtRub(n: number | undefined | null): string {
   if (n == null) return '₽0'
   return '₽' + n.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+function sumRecord(data: Record<string, number> | undefined | null): number {
+  return Object.values(data || {}).reduce((sum, value) => sum + (Number(value) || 0), 0)
 }
 
 /** ISO week key (YYYY-Wnn) for a date string YYYY-MM-DD */
@@ -185,54 +181,6 @@ function SliceByOuter({
   )
 }
 
-function VisitPivotTable({
-  data,
-  formatCol,
-}: {
-  data: Record<string, Record<string, number>>
-  formatCol?: (col: string) => string
-}) {
-  const days = Object.keys(data).sort()
-  const colSet = new Set<string>()
-  days.forEach((d) => Object.keys(data[d] || {}).forEach((c) => colSet.add(c)))
-  const cols = [...colSet].sort()
-  if (days.length === 0) {
-    return <div className="analytics-empty">Нет данных</div>
-  }
-  return (
-    <div className="analytics-table-wrapper" style={{ overflowX: 'auto' }}>
-      <table className="analytics-table">
-        <thead>
-          <tr>
-            <th>Дата</th>
-            {cols.map((c) => (
-              <th key={c} className="num" title={c}>{formatCol ? formatCol(c) : c}</th>
-            ))}
-            <th className="num">Итого</th>
-          </tr>
-        </thead>
-        <tbody>
-          {days.map((d) => {
-            const row = data[d] || {}
-            let sum = 0
-            return (
-              <tr key={d}>
-                <td>{d}</td>
-                {cols.map((c) => {
-                  const v = row[c] || 0
-                  sum += v
-                  return <td key={c} className="num">{fmt(v, 0)}</td>
-                })}
-                <td className="num">{fmt(sum, 0)}</td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-    </div>
-  )
-}
-
 export default function Analytics() {
   const [tab, setTab] = useState<Tab>('overview')
   const [dateFrom, setDateFrom] = useState('')
@@ -243,8 +191,6 @@ export default function Analytics() {
   const [lastLoaded, setLastLoaded] = useState('')
 
   const [productData, setProductData] = useState<any>(null)
-  const [employeeData, setEmployeeData] = useState<any>(null)
-  const [bookingTariffData, setBookingTariffData] = useState<any>(null)
 
   const fmtDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
@@ -289,35 +235,8 @@ export default function Analytics() {
     setLoading(true)
     setError(null)
     try {
-      const [prodRes, empRes, bookRes] = await Promise.allSettled([
-        restaurantService.getProductSalesAnalytics(dateFrom, dateTo),
-        restaurantService.getEmployeeAnalytics(dateFrom, dateTo),
-        restaurantService.getBookingTariffVisitAnalytics(dateFrom, dateTo),
-      ])
-
-      const failed: string[] = []
-      if (prodRes.status === 'fulfilled') setProductData(prodRes.value)
-      else {
-        setProductData(null)
-        failed.push('товары')
-      }
-      if (empRes.status === 'fulfilled') setEmployeeData(empRes.value)
-      else {
-        setEmployeeData(null)
-        failed.push('сотрудники')
-      }
-      if (bookRes.status === 'fulfilled') setBookingTariffData(bookRes.value)
-      else {
-        setBookingTariffData(null)
-        failed.push('тарифы/брони')
-      }
-
-      if (failed.length === 3) {
-        throw new Error('Все блоки аналитики недоступны')
-      }
-      if (failed.length > 0) {
-        setWarning(`Частично недоступна аналитика: ${failed.join(', ')}`)
-      }
+      const productAnalytics = await restaurantService.getProductSalesAnalytics(dateFrom, dateTo)
+      setProductData(productAnalytics)
       setLastLoaded(new Date().toLocaleTimeString('ru-RU'))
     } catch (e: any) {
       console.error('Failed to load analytics:', e)
@@ -337,7 +256,6 @@ export default function Analytics() {
   // ──── OVERVIEW ──────────────────────────────────
   const renderOverview = () => {
     const p = productData
-    const e = employeeData
     if (!p) return null
 
     return (
@@ -348,15 +266,6 @@ export default function Analytics() {
           <KPI label="Средний чек" value={fmtRub(p.avgCheck)} color="blue" />
           <KPI label="Товаров продано" value={fmt(p.totalItems, 0)} />
           <KPI label="Уникальных товаров" value={fmt(p.uniqueProducts, 0)} />
-          {e && <KPI label="Смен за период" value={fmt(e.totalShifts, 0)} />}
-          {e && <KPI label="Всего часов" value={fmt(e.totalHours, 1)} />}
-          {e && e.totalAdministratorHours != null && (
-            <KPI label="Часы администраторов" value={fmt(e.totalAdministratorHours, 1)} color="purple" />
-          )}
-          {e && e.administratorShiftCount != null && (
-            <KPI label="Смен администраторов" value={fmt(e.administratorShiftCount, 0)} />
-          )}
-          {e && <KPI label="Ср. часов за смену" value={fmt(e.avgHoursPerShift, 1)} />}
         </div>
         <Section title="📊 Выручка по категориям и товарам">
           <div className="chart-grid">
@@ -551,83 +460,36 @@ export default function Analytics() {
 
   // ──── EMPLOYEES ──────────────────────────────────
   const renderEmployees = () => {
-    const e = employeeData
     const p = productData
-    if (!e) return null
+    if (!p) return null
 
     return (
       <>
         <div className="kpi-grid">
-          <KPI label="Сотрудников" value={fmt(e.totalEmployees, 0)} color="blue" />
-          <KPI label="Всего смен" value={fmt(e.totalShifts, 0)} />
-          <KPI label="Всего часов" value={fmt(e.totalHours, 1)} color="green" />
-          {e.totalAdministratorHours != null && (
-            <KPI label="Часы администраторов" value={fmt(e.totalAdministratorHours, 1)} color="purple" />
-          )}
-          <KPI label="Ср. часов за смену" value={fmt(e.avgHoursPerShift, 1)} />
+          <KPI label="Выручка администраторов" value={fmtRub(sumRecord(p.revenueByAdmin))} color="green" />
+          <KPI label="Заказов по администраторам" value={fmt(sumRecord(p.ordersByAdmin), 0)} color="blue" />
+          <KPI label="Товаров по администраторам" value={fmt(sumRecord(p.itemsByAdmin), 0)} />
         </div>
-        {(e.hoursByAdministrator && Object.keys(e.hoursByAdministrator).length > 0) && (
-          <Section title="👔 Часы работы администраторов">
-            <div className="chart-grid">
-              <div className="chart-card wide">
-                <h3>Отработанные часы (роли ADMIN / HEAD_ADMIN)</h3>
-                <BarChart data={e.hoursByAdministrator} color="purple" valueFormatter={n => fmt(n, 1) + ' ч.'} />
-              </div>
-            </div>
-          </Section>
-        )}
-        <Section title="⏰ Часы работы">
-          <div className="chart-grid">
-            <div className="chart-card">
-              <h3>Часы по сотрудникам</h3>
-              <BarChart data={e.hoursByEmployee || {}} color="blue" valueFormatter={n => fmt(n, 1) + ' ч.'} />
-            </div>
-            <div className="chart-card">
-              <h3>Кол-во смен по сотрудникам</h3>
-              <BarChart data={e.shiftCountByEmployee || {}} color="teal" valueFormatter={n => fmt(n, 0)} />
-            </div>
-          </div>
-        </Section>
         <Section title="💰 Продажи по администраторам">
           <div className="chart-grid">
             <div className="chart-card">
               <h3>Выручка по администраторам</h3>
-              <BarChart data={e.revenueByEmployee || (p?.revenueByAdmin || {})} color="green" valueFormatter={fmtRub} />
+              <BarChart data={p.revenueByAdmin || {}} color="green" valueFormatter={fmtRub} />
             </div>
             <div className="chart-card">
               <h3>Заказов по администраторам</h3>
-              <BarChart data={e.orderCountByEmployee || (p?.ordersByAdmin || {})} color="purple" valueFormatter={n => fmt(n, 0)} />
+              <BarChart data={p.ordersByAdmin || {}} color="purple" valueFormatter={n => fmt(n, 0)} />
             </div>
           </div>
         </Section>
-        {e.revenuePerHour && Object.keys(e.revenuePerHour).length > 0 && (
-          <Section title="📊 Выручка на час работы" defaultOpen={false}>
-            <div className="chart-grid">
-              <div className="chart-card">
-                <h3>₽ / час по сотрудникам</h3>
-                <BarChart data={e.revenuePerHour} color="orange" valueFormatter={fmtRub} />
-              </div>
-            </div>
-          </Section>
-        )}
-        <Section title="📅 Часы по дням" defaultOpen={false}>
+        <Section title="📦 Товаров продано по администраторам" defaultOpen={false}>
           <div className="chart-grid">
-            <div className="chart-card wide">
-              <h3>Часы работы по дням</h3>
-              <BarChart data={e.hoursByDay || {}} color="indigo" valueFormatter={n => fmt(n, 1) + ' ч.'} />
+            <div className="chart-card">
+              <h3>Товаров по администраторам</h3>
+              <BarChart data={p.itemsByAdmin || {}} color="teal" valueFormatter={n => fmt(n, 0) + ' шт.'} />
             </div>
           </div>
         </Section>
-        {p && (
-          <Section title="📦 Товаров продано по администраторам" defaultOpen={false}>
-            <div className="chart-grid">
-              <div className="chart-card">
-                <h3>Товаров по администраторам</h3>
-                <BarChart data={p.itemsByAdmin || {}} color="teal" valueFormatter={n => fmt(n, 0) + ' шт.'} />
-              </div>
-            </div>
-          </Section>
-        )}
       </>
     )
   }
@@ -645,12 +507,6 @@ export default function Analytics() {
     const ordersDowLabels: Record<string, number> = {}
     for (const [d, v] of Object.entries(p.ordersByDow || {} as Record<string, number>)) {
       ordersDowLabels[DOW_RU[d] || d] = v as number
-    }
-
-    // Hour labels
-    const hourLabels: Record<string, number> = {}
-    for (const [h, v] of Object.entries(p.revenueByHour || {} as Record<string, number>)) {
-      hourLabels[`${h}:00`] = v as number
     }
 
     return (
@@ -711,7 +567,7 @@ export default function Analytics() {
             </div>
           </div>
         </Section>
-        <Section title="📊 По дню недели и часу" defaultOpen={false}>
+        <Section title="📊 По дню недели" defaultOpen={false}>
           <div className="chart-grid">
             <div className="chart-card">
               <h3>Выручка по дню недели</h3>
@@ -721,43 +577,7 @@ export default function Analytics() {
               <h3>Заказов по дню недели</h3>
               <BarChart data={ordersDowLabels} color="teal" valueFormatter={n => fmt(n, 0)} />
             </div>
-            <div className="chart-card wide">
-              <h3>Выручка по часу дня</h3>
-              <BarChart data={hourLabels} color="orange" valueFormatter={fmtRub} />
-            </div>
           </div>
-        </Section>
-      </>
-    )
-  }
-
-  const renderTariffs = () => {
-    const b = bookingTariffData
-    if (!b) return null
-    const byPlan = asNestedMap(b.visitsByDayAndTariffPlan)
-    const byRuleType = asNestedMap(b.visitsByDayAndRuleType)
-    return (
-      <>
-        <div className="kpi-grid">
-          <KPI label="Оплаченных бронирований" value={fmt(b.totalPaidBookings ?? 0, 0)} color="blue" />
-        </div>
-        {b.note && (
-          <p className="dynamics-hint">{String(b.note)}</p>
-        )}
-        <Section title="Тарифный план: посещения по дням">
-          <VisitPivotTable data={byPlan} />
-        </Section>
-        <Section title="Тип применённого правила (STANDARD / WEEKEND / HOLIDAY / SPECIAL) по дням" defaultOpen={false}>
-          <p className="dynamics-hint">
-            Если в расчёте участвовало несколько правил, одно бронирование может учитываться в нескольких колонках.
-          </p>
-          <VisitPivotTable
-            data={byRuleType}
-            formatCol={(c) => RULE_TYPE_RU[c] || c}
-          />
-        </Section>
-        <Section title="Конкретные правила (id + тип) по дням" defaultOpen={false}>
-          <VisitPivotTable data={asNestedMap(b.visitsByDayAndRuleId)} />
         </Section>
       </>
     )
@@ -769,7 +589,6 @@ export default function Analytics() {
       case 'products': return renderProducts()
       case 'employees': return renderEmployees()
       case 'time': return renderTime()
-      case 'tariffs': return renderTariffs()
     }
   }
 

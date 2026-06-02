@@ -8,6 +8,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CryptoService } from '../../crypto/crypto.service';
+import { BankBotUsernameResolver } from './bank-bot-username.resolver';
 import { TelegramClient, Api } from 'telegram';
 import { StringSession } from 'telegram/sessions';
 
@@ -26,6 +27,7 @@ export class MtprotoService {
     private prisma: PrismaService,
     private cryptoService: CryptoService,
     private configService: ConfigService,
+    private bankBotResolver: BankBotUsernameResolver,
   ) {
     // Explicitly convert to number (ConfigService returns string from .env)
     const apiIdStr = this.configService.getOrThrow<string>('TG_API_ID');
@@ -440,7 +442,7 @@ export class MtprotoService {
   /**
    * Get Telegram link status for user
    */
-  async getStatus(userId: string) {
+  async getStatus(userId: string, restaurantId: string) {
     this.logger.debug(`Checking Telegram status for user: ${userId}`);
     
     // Check for linked Telegram account
@@ -456,11 +458,13 @@ export class MtprotoService {
       },
     });
 
+    const bankBotUsername = await this.bankBotResolver.resolve(restaurantId, userId);
+
     const result = {
       linked: !!account,
       hasActiveSession: !!session,
       telegramUsername: account?.username || null,
-      bankBotUsername: session?.bankBotUsername || null,
+      bankBotUsername,
     };
     
     this.logger.log(`Telegram status for user ${userId}: hasActiveSession=${result.hasActiveSession}, linked=${result.linked}`);
@@ -469,40 +473,62 @@ export class MtprotoService {
   }
 
   /**
-   * Update bank bot username for user's active session
+   * Update bank bot username for the restaurant (shared by all staff).
    */
-  async updateBankBotUsername(userId: string, bankBotUsername: string) {
-    // Remove @ prefix if present
-    const cleanUsername = bankBotUsername.replace(/^@/, '');
-
-    const session = await this.prisma.telegramSession.findFirst({
-      where: { userId, revokedAt: null },
-    });
-
-    if (!session) {
-      throw new NotFoundException('No active Telegram session found. Please link your Telegram account first.');
+  async updateRestaurantBankBotUsername(
+    restaurantId: string,
+    userId: string,
+    bankBotUsername: string,
+  ) {
+    const cleanUsername = BankBotUsernameResolver.clean(bankBotUsername);
+    if (!cleanUsername) {
+      throw new BadRequestException('bankBotUsername is required');
     }
 
-    await this.prisma.telegramSession.update({
-      where: { id: session.id },
+    await this.ensureRestaurantExists(restaurantId);
+
+    await this.prisma.restaurant.update({
+      where: { id: restaurantId },
       data: { bankBotUsername: cleanUsername },
     });
 
-    this.logger.log(`Updated bank bot username for user ${userId}: @${cleanUsername}`);
+    // Keep session field in sync for older clients / fallback resolution
+    const session = await this.prisma.telegramSession.findFirst({
+      where: { userId, revokedAt: null },
+    });
+    if (session) {
+      await this.prisma.telegramSession.update({
+        where: { id: session.id },
+        data: { bankBotUsername: cleanUsername },
+      });
+    }
+
+    this.logger.log(
+      `Updated bank bot username for restaurant ${restaurantId}: @${cleanUsername}`,
+    );
 
     return { bankBotUsername: cleanUsername };
   }
 
-  /**
-   * Get Telegram settings for user
-   */
-  async getSettings(userId: string) {
-    const session = await this.prisma.telegramSession.findFirst({
-      where: { userId, revokedAt: null },
+  private async ensureRestaurantExists(restaurantId: string) {
+    const existing = await this.prisma.restaurant.findUnique({
+      where: { id: restaurantId },
     });
+    if (!existing) {
+      await this.prisma.restaurant.create({
+        data: {
+          id: restaurantId,
+          name: `Restaurant ${restaurantId}`,
+        },
+      });
+    }
+  }
 
-    return {
-      bankBotUsername: session?.bankBotUsername || null,
-    };
+  /**
+   * Get Telegram settings for restaurant
+   */
+  async getRestaurantSettings(restaurantId: string, userId: string) {
+    const bankBotUsername = await this.bankBotResolver.resolve(restaurantId, userId);
+    return { bankBotUsername };
   }
 }

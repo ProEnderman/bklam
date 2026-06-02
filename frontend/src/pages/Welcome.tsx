@@ -1,6 +1,13 @@
 import { useNavigate, useOutletContext } from 'react-router-dom'
 import type { User } from '../api/types'
 
+const QUICK_LINKS_HEAD_ADMIN = [
+  { label: 'Dashboard', desc: 'Платформа', path: '/platform', icon: '📊' },
+  { label: 'Рестораны', desc: 'Сеть ресторанов', path: '/platform/restaurants', icon: '🏪' },
+  { label: 'Лог активности', desc: 'События платформы', path: '/platform/activity-log', icon: '📜' },
+  { label: 'Профиль', desc: 'Аккаунт', path: '/profile', icon: '👤' },
+]
+
 const QUICK_LINKS_ADMIN = [
   { label: 'Аналитика', desc: 'Decision Dashboard', path: '/booking-analytics', icon: '📊' },
   { label: 'Бронирования', desc: 'Список заказов', path: '/booking-orders', icon: '📋' },
@@ -8,8 +15,6 @@ const QUICK_LINKS_ADMIN = [
   { label: 'Тарифы', desc: 'Планы и правила', path: '/tariffs', icon: '🏷' },
   { label: 'Заказы ресторана', desc: 'Текущие заказы', path: '/orders', icon: '🍽' },
   { label: 'Карта зала', desc: 'Схема столов', path: '/hall', icon: '🗺' },
-  { label: 'Лояльность', desc: 'Программа и гости', path: '/loyalty', icon: '💎' },
-  { label: 'Смены', desc: 'График сотрудников', path: '/shifts', icon: '🕐' },
 ]
 
 const QUICK_LINKS_WORKER = [
@@ -23,8 +28,13 @@ export default function Welcome() {
   const navigate = useNavigate()
   const { user } = useOutletContext<{ user?: User }>()
 
-  const isAdmin = user?.role === 'ADMIN'
-  const links = isAdmin ? QUICK_LINKS_ADMIN : QUICK_LINKS_WORKER
+  const isHeadAdmin = user?.role === 'HEAD_ADMIN'
+  const isRestaurantAdmin = user?.role === 'ADMIN'
+  const links = isHeadAdmin
+    ? QUICK_LINKS_HEAD_ADMIN
+    : isRestaurantAdmin
+      ? QUICK_LINKS_ADMIN
+      : QUICK_LINKS_WORKER
   const greeting = getGreeting()
 
   return (

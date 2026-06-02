@@ -5,6 +5,7 @@ import com.restaurant.exception.ApiErrorResponse;
 import com.restaurant.exception.HasApiErrorCode;
 import com.restaurant.model.GuestSession;
 import com.restaurant.service.PublicOrderingService;
+import com.restaurant.tenant.QrPublicTenantScope;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
@@ -34,28 +35,28 @@ public class PublicOrderingController {
                             "Invalid or expired QR token"));
         }
 
-        PublicOrderingService.MenuVersion version = publicOrderingService.computeMenuVersion(restaurantId);
+        return QrPublicTenantScope.run(restaurantId, () -> {
+            PublicOrderingService.MenuVersion version = publicOrderingService.computeMenuVersion(restaurantId);
 
-        long lastModMillis = version.lastModified() != null
-                ? version.lastModified().toInstant(ZoneOffset.UTC).toEpochMilli()
-                : -1;
+            long lastModMillis = version.lastModified() != null
+                    ? version.lastModified().toInstant(ZoneOffset.UTC).toEpochMilli()
+                    : -1;
 
-        // Handles weak ETags, multi-value If-None-Match, and If-Modified-Since.
-        // Sets ETag + Last-Modified on the response and returns true when 304 is appropriate.
-        if (webRequest.checkNotModified(version.etag(), lastModMillis)) {
-            return null;
-        }
+            if (webRequest.checkNotModified(version.etag(), lastModMillis)) {
+                return null;
+            }
 
-        List<PublicMenuCategoryDto> menu = publicOrderingService.getMenu(restaurantId);
+            List<PublicMenuCategoryDto> menu = publicOrderingService.getMenu(restaurantId);
 
-        var builder = ResponseEntity.ok()
-                .header(HttpHeaders.ETAG, version.etag())
-                .header(HttpHeaders.CACHE_CONTROL, "no-cache");
-        if (lastModMillis >= 0) {
-            builder.lastModified(lastModMillis);
-        }
+            var builder = ResponseEntity.ok()
+                    .header(HttpHeaders.ETAG, version.etag())
+                    .header(HttpHeaders.CACHE_CONTROL, "no-cache");
+            if (lastModMillis >= 0) {
+                builder.lastModified(lastModMillis);
+            }
 
-        return builder.body(menu);
+            return builder.body(menu);
+        });
     }
 
     // ── 2. POST /api/public/sessions ──
@@ -68,13 +69,15 @@ public class PublicOrderingController {
                     .body(ApiErrorResponse.of(null, HttpStatus.UNAUTHORIZED, "INVALID_QR_TOKEN",
                             "Invalid or expired QR token"));
         }
-        CreateSessionResponse response = publicOrderingService.createSession(restaurantId, request.tableId());
-        if (response == null) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(ApiErrorResponse.of(null, HttpStatus.FORBIDDEN, "TABLE_NOT_IN_RESTAURANT",
-                            "Table does not belong to this restaurant"));
-        }
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return QrPublicTenantScope.run(restaurantId, () -> {
+            CreateSessionResponse response = publicOrderingService.createSession(restaurantId, request.tableId());
+            if (response == null) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(ApiErrorResponse.of(null, HttpStatus.FORBIDDEN, "TABLE_NOT_IN_RESTAURANT",
+                                "Table does not belong to this restaurant"));
+            }
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        });
     }
 
     // ── 3. GET /api/public/orders/current ──
@@ -82,13 +85,15 @@ public class PublicOrderingController {
     @GetMapping("/orders/current")
     public ResponseEntity<?> getCurrentOrder(@RequestHeader(value = "X-Guest-Session", required = false) String sessionToken) {
         GuestSession session = resolveSessionOrThrow(sessionToken);
-        OrderDto order = publicOrderingService.getCurrentOrder(session);
-        if (order == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(ApiErrorResponse.of(null, HttpStatus.NOT_FOUND, "NO_OPEN_ORDER",
-                            "No open order for this table"));
-        }
-        return ResponseEntity.ok(order);
+        return QrPublicTenantScope.run(session.getRestaurantId(), () -> {
+            OrderDto order = publicOrderingService.getCurrentOrder(session);
+            if (order == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(ApiErrorResponse.of(null, HttpStatus.NOT_FOUND, "NO_OPEN_ORDER",
+                                "No open order for this table"));
+            }
+            return ResponseEntity.ok(order);
+        });
     }
 
     // ── 4. POST /api/public/orders ──
@@ -98,8 +103,10 @@ public class PublicOrderingController {
             @RequestHeader(value = "X-Guest-Session", required = false) String sessionToken,
             @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey) {
         GuestSession session = resolveSessionOrThrow(sessionToken);
-        OrderDto order = publicOrderingService.createOrGetOrder(session.getId(), idempotencyKey);
-        return ResponseEntity.status(HttpStatus.CREATED).body(order);
+        return QrPublicTenantScope.run(session.getRestaurantId(), () -> {
+            OrderDto order = publicOrderingService.createOrGetOrder(session.getId(), idempotencyKey);
+            return ResponseEntity.status(HttpStatus.CREATED).body(order);
+        });
     }
 
     // ── 5. POST /api/public/orders/{orderId}/items ──
@@ -110,8 +117,10 @@ public class PublicOrderingController {
             @PathVariable Long orderId,
             @Valid @RequestBody AddPublicItemRequest request) {
         GuestSession session = resolveSessionOrThrow(sessionToken);
-        OrderDto order = publicOrderingService.addItem(session, orderId, request);
-        return ResponseEntity.ok(order);
+        return QrPublicTenantScope.run(session.getRestaurantId(), () -> {
+            OrderDto order = publicOrderingService.addItem(session, orderId, request);
+            return ResponseEntity.ok(order);
+        });
     }
 
     // ── 6. DELETE /api/public/orders/{orderId}/items/{itemId} ──
@@ -122,8 +131,10 @@ public class PublicOrderingController {
             @PathVariable Long orderId,
             @PathVariable Long itemId) {
         GuestSession session = resolveSessionOrThrow(sessionToken);
-        OrderDto order = publicOrderingService.removeItem(session, orderId, itemId);
-        return ResponseEntity.ok(order);
+        return QrPublicTenantScope.run(session.getRestaurantId(), () -> {
+            OrderDto order = publicOrderingService.removeItem(session, orderId, itemId);
+            return ResponseEntity.ok(order);
+        });
     }
 
     // ── internal ──

@@ -103,7 +103,7 @@ public class BookingService {
 
     @Transactional(readOnly = true)
     public Page<Booking> getBookingsPageByStatusIn(Long branchId, Long activityId, LocalDateTime from, LocalDateTime to,
-                                                   List<Booking.BookingStatus> statuses, Pageable pageable) {
+                                                   List<Booking.BookingStatus> statuses, Boolean linkedToOrder, Pageable pageable) {
         if (SecurityUtils.isRegularWorker() && !SecurityUtils.hasPermission(UserPermission.VIEW_BOOKINGS)) {
             throw new BusinessException("You don't have permission to view bookings");
         }
@@ -112,14 +112,19 @@ public class BookingService {
         }
         LocalDateTime fromDate = from != null ? from : LocalDateTime.of(1970, 1, 1, 0, 0);
         LocalDateTime toDate = to != null ? to : LocalDateTime.of(2099, 12, 31, 23, 59, 59);
-        Page<Booking> page = bookingRepository.findBookingsPageByStatusIn(branchId, activityId, statuses, fromDate, toDate, pageable);
+        Page<Booking> page = Boolean.TRUE.equals(linkedToOrder)
+            ? bookingRepository.findBookingsPageByStatusInLinkedToOrder(branchId, activityId, statuses, fromDate, toDate, pageable)
+            : Boolean.FALSE.equals(linkedToOrder)
+                ? bookingRepository.findBookingsPageByStatusInNotLinkedToOrder(branchId, activityId, statuses, fromDate, toDate, pageable)
+                : bookingRepository.findBookingsPageByStatusIn(branchId, activityId, statuses, fromDate, toDate, pageable);
         touchBookingsLazyFields(page.getContent());
         return page;
     }
 
     @Transactional(readOnly = true)
     public Page<Booking> getBookingsPageByStatusInWithCustomerSearch(Long branchId, Long activityId, LocalDateTime from, LocalDateTime to,
-                                                                     List<Booking.BookingStatus> statuses, String customerSearch, Pageable pageable) {
+                                                                     List<Booking.BookingStatus> statuses, String customerSearch,
+                                                                     Boolean linkedToOrder, Pageable pageable) {
         if (SecurityUtils.isRegularWorker() && !SecurityUtils.hasPermission(UserPermission.VIEW_BOOKINGS)) {
             throw new BusinessException("You don't have permission to view bookings");
         }
@@ -127,12 +132,18 @@ public class BookingService {
             return getBookingsPage(branchId, activityId, from, to, null, pageable);
         }
         if (customerSearch == null || customerSearch.isBlank()) {
-            return getBookingsPageByStatusIn(branchId, activityId, from, to, statuses, pageable);
+            return getBookingsPageByStatusIn(branchId, activityId, from, to, statuses, linkedToOrder, pageable);
         }
         LocalDateTime fromDate = from != null ? from : LocalDateTime.of(1970, 1, 1, 0, 0);
         LocalDateTime toDate = to != null ? to : LocalDateTime.of(2099, 12, 31, 23, 59, 59);
-        Page<Booking> page = bookingRepository.findBookingsPageByStatusInAndCustomerSearch(
-            branchId, activityId, statuses, fromDate, toDate, customerSearch.trim(), pageable);
+        Page<Booking> page = Boolean.TRUE.equals(linkedToOrder)
+            ? bookingRepository.findBookingsPageByStatusInAndCustomerSearchLinkedToOrder(
+                branchId, activityId, statuses, fromDate, toDate, customerSearch.trim(), pageable)
+            : Boolean.FALSE.equals(linkedToOrder)
+                ? bookingRepository.findBookingsPageByStatusInAndCustomerSearchNotLinkedToOrder(
+                    branchId, activityId, statuses, fromDate, toDate, customerSearch.trim(), pageable)
+                : bookingRepository.findBookingsPageByStatusInAndCustomerSearch(
+                    branchId, activityId, statuses, fromDate, toDate, customerSearch.trim(), pageable);
         touchBookingsLazyFields(page.getContent());
         return page;
     }

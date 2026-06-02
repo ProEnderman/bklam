@@ -8,6 +8,10 @@ import FormInput from '../../components/FormInput'
 import PaymentQrModal from '../../components/PaymentQrModal'
 import TelegramLinkModal from '../../components/TelegramLinkModal'
 import { telegramPaymentService } from '../../api/telegramPaymentService'
+import {
+  TELEGRAM_ONLINE_PAYMENT_DISABLED_MESSAGE,
+  TELEGRAM_ONLINE_PAYMENT_ENABLED,
+} from '../../config/paymentConfig'
 import './BookingOrders.css'
 
 interface BookingGroup {
@@ -68,11 +72,12 @@ export default function BookingOrders() {
   const [loading, setLoading] = useState(true)
   const [groups, setGroups] = useState<BookingGroup[]>([])
   const [searchQuery, setSearchQuery] = useState('')
-  /** По умолчанию показываем только группы с привязанным заказом — после «Удалить заказ (брони остаются)» карточка исчезнет */
   const [page, setPage] = useState(0)
-  const [pageSize] = useState(50)
+  /** Загружаем бронирования пачкой и группируем в заказы на клиенте */
+  const [pageSize] = useState(200)
   const [totalPages, setTotalPages] = useState(0)
   const [totalElements, setTotalElements] = useState(0)
+  const [bookingsOnPage, setBookingsOnPage] = useState(0)
   const [pageInputValue, setPageInputValue] = useState('1')
 
   // Edit modal
@@ -101,7 +106,9 @@ export default function BookingOrders() {
 
   useEffect(() => {
     loadData(0)
-    checkTelegramStatus()
+    if (TELEGRAM_ONLINE_PAYMENT_ENABLED) {
+      checkTelegramStatus()
+    }
   }, [])
 
   // Обновить список при возврате на вкладку (например, после создания заказа в «Новый заказ»)
@@ -125,6 +132,7 @@ export default function BookingOrders() {
           size: pageSize,
           sort: 'createdAt,desc',
           status: ['DRAFT', 'CONFIRMED', 'PAID'],
+          linkedToOrder: true,
         }),
         activityService.getActivities(undefined, 'ACTIVE'),
       ])
@@ -152,6 +160,7 @@ export default function BookingOrders() {
 
       const active = list.filter((b: Booking) => b.status === 'DRAFT' || b.status === 'CONFIRMED' || b.status === 'PAID')
       setBookings(active)
+      setBookingsOnPage(active.length)
       setTotalPages(totalPg)
       setTotalElements(totalEl)
       setPage(currentPage)
@@ -167,17 +176,14 @@ export default function BookingOrders() {
   const groupBookings = (bkList: Booking[]) => {
     const grps: BookingGroup[] = []
 
-    // 1) Группы по заказу (bookingOrderId): все бронирования с одним заказом — одна группа
+    // Только бронирования, явно привязанные к заказу (bookingOrderId).
+    // Обычные брони из раздела «Бронирования» сюда не попадают.
     const byOrderId = new Map<number, Booking[]>()
-    const withoutOrderId: Booking[] = []
     for (const b of bkList) {
       const oid = b.bookingOrderId ?? null
-      if (oid != null) {
-        if (!byOrderId.has(oid)) byOrderId.set(oid, [])
-        byOrderId.get(oid)!.push(b)
-      } else {
-        withoutOrderId.push(b)
-      }
+      if (oid == null) continue
+      if (!byOrderId.has(oid)) byOrderId.set(oid, [])
+      byOrderId.get(oid)!.push(b)
     }
     for (const [orderId, bookings] of byOrderId) {
       bookings.sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime())
@@ -189,56 +195,6 @@ export default function BookingOrders() {
         totalAmount: bookings.reduce((sum, b) => sum + (b.totalAmount || 0), 0),
         bookingOrderId: orderId,
       })
-    }
-
-    // 2) Без заказа: группируем по клиенту и дате — один заказ = одна карточка, не сваливаем все брони клиента в одну
-    const clientMap = new Map<string, Booking[]>()
-    for (const b of withoutOrderId) {
-      const clientKey = `${(b.customerName || 'Без имени').toLowerCase()}_${(b.customerPhone || '').toLowerCase()}`
-      if (!clientMap.has(clientKey)) clientMap.set(clientKey, [])
-      clientMap.get(clientKey)!.push(b)
-    }
-    for (const [clientKey, clientBookings] of clientMap) {
-      clientBookings.sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime())
-      const paidBookings = clientBookings.filter(b => b.status === 'PAID')
-      const activeBookings = clientBookings.filter(b => b.status !== 'PAID')
-      if (paidBookings.length > 0) {
-        const paidByDate = new Map<string, Booking[]>()
-        for (const b of paidBookings) {
-          const dateKey = new Date(b.startAt).toISOString().slice(0, 10)
-          if (!paidByDate.has(dateKey)) paidByDate.set(dateKey, [])
-          paidByDate.get(dateKey)!.push(b)
-        }
-        for (const [dateKey, dateBks] of paidByDate) {
-          dateBks.sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime())
-          grps.push({
-            key: `${clientKey}_paid_${dateKey}`,
-            customerName: dateBks[0].customerName || 'Без имени',
-            customerPhone: dateBks[0].customerPhone || '',
-            bookings: dateBks,
-            totalAmount: dateBks.reduce((sum, b) => sum + (b.totalAmount || 0), 0),
-          })
-        }
-      }
-      // Активные без заказа — по дате: одна карточка на клиента на день
-      if (activeBookings.length > 0) {
-        const activeByDate = new Map<string, Booking[]>()
-        for (const b of activeBookings) {
-          const dateKey = new Date(b.startAt).toISOString().slice(0, 10)
-          if (!activeByDate.has(dateKey)) activeByDate.set(dateKey, [])
-          activeByDate.get(dateKey)!.push(b)
-        }
-        for (const [dateKey, dateBks] of activeByDate) {
-          dateBks.sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime())
-          grps.push({
-            key: `${clientKey}_active_${dateKey}`,
-            customerName: dateBks[0].customerName || 'Без имени',
-            customerPhone: dateBks[0].customerPhone || '',
-            bookings: dateBks,
-            totalAmount: dateBks.reduce((sum, b) => sum + (b.totalAmount || 0), 0),
-          })
-        }
-      }
     }
 
     grps.sort((a, b) => {
@@ -407,6 +363,7 @@ export default function BookingOrders() {
         notes: addLine.discountReason ? `Скидка ${addLine.discountPercent}%: ${addLine.discountReason}` : undefined,
         status: 'CONFIRMED',
         totalAmount: pricingResult.totalAmount,
+        ...(addToGroup.bookingOrderId != null && { bookingOrderId: addToGroup.bookingOrderId }),
       })
       setAddToGroup(null)
       loadData(page)
@@ -429,6 +386,10 @@ export default function BookingOrders() {
   }
 
   const handlePayment = async (group: BookingGroup) => {
+    if (!TELEGRAM_ONLINE_PAYMENT_ENABLED) {
+      alert(TELEGRAM_ONLINE_PAYMENT_DISABLED_MESSAGE)
+      return
+    }
     if (!telegramLinked) {
       setShowTelegramLink(true)
       return
@@ -512,6 +473,7 @@ export default function BookingOrders() {
               notes: `Автозаполнение пробела (${gapFiller.name})${gap.isFree ? ' [стоп-чек]' : ''}`,
               status: 'CONFIRMED',
               totalAmount,
+              ...(group.bookingOrderId != null && { bookingOrderId: group.bookingOrderId }),
             })
             await bookingService.markAsPaid(gapBooking.id)
           } catch (err) {
@@ -574,6 +536,7 @@ export default function BookingOrders() {
               notes: `Пребывание до оплаты (${gapFiller.name})${noteStopCheck}`,
               status: 'CONFIRMED',
               totalAmount,
+              ...(group.bookingOrderId != null && { bookingOrderId: group.bookingOrderId }),
             })
             await bookingService.markAsPaid(trailingBooking.id)
           } catch (err) {
@@ -898,7 +861,8 @@ export default function BookingOrders() {
     })
   }
 
-  const orderGroups = searchFiltered.filter(g => (g.bookingOrderId ?? null) != null)
+  /** Заказы: только группы с booking_order_id */
+  const activeOrderGroups = searchFiltered.filter(g => !isGroupMarkedAsDeletedOrder(g))
   const deletedOrderGroups = searchFiltered.filter(g => isGroupMarkedAsDeletedOrder(g))
   const MAX_DISPLAY_GROUPS = 100
 
@@ -912,6 +876,12 @@ export default function BookingOrders() {
       <p className="page-subtitle">Управление заказами клиентов, расчёт финальной цены и генерация ссылки на оплату</p>
 
       {/* Telegram settings */}
+      {!TELEGRAM_ONLINE_PAYMENT_ENABLED ? (
+        <div className="tg-settings-bar tg-settings-bar-disabled">
+          <p className="payment-tg-disabled-banner booking-orders-tg-banner">{TELEGRAM_ONLINE_PAYMENT_DISABLED_MESSAGE}</p>
+          <p className="booking-orders-tg-hint">Доступна отметка «Заказ оплачен» (наличные / без Telegram).</p>
+        </div>
+      ) : (
       <div className="tg-settings-bar">
         <div className="tg-bot-group">
           <label>Получатель в Telegram:</label>
@@ -944,8 +914,7 @@ export default function BookingOrders() {
           )}
         </div>
       </div>
-
-      {/* Search */}
+      )}
       {groups.length > 0 && (
         <div className="ab-search-bar">
           <input
@@ -959,17 +928,17 @@ export default function BookingOrders() {
             <button className="ab-search-clear" onClick={() => setSearchQuery('')}>✕</button>
           )}
           <span className="ab-search-count">
-            Заказов: {orderGroups.length} · Отменённых: {deletedOrderGroups.length}
+            Заказов на странице: {activeOrderGroups.length} · Отменённых: {deletedOrderGroups.length}
           </span>
         </div>
       )}
 
-      {orderGroups.length === 0 && deletedOrderGroups.length === 0 && !searchQuery ? (
+      {activeOrderGroups.length === 0 && deletedOrderGroups.length === 0 && !searchQuery ? (
         <div className="empty-state">
           <p>Нет активных заказов</p>
           <a href="/booking-orders/new" className="btn-primary-link">Создать новый заказ</a>
         </div>
-      ) : orderGroups.length === 0 && deletedOrderGroups.length === 0 && searchQuery ? (
+      ) : activeOrderGroups.length === 0 && deletedOrderGroups.length === 0 && searchQuery ? (
         <div className="empty-state">
           <p>По запросу «{searchQuery}» ничего не найдено</p>
           <button className="btn-primary" onClick={() => setSearchQuery('')}>Сбросить поиск</button>
@@ -979,16 +948,16 @@ export default function BookingOrders() {
         {/* Заказы */}
         <section className="booking-orders-section">
           <h2 className="booking-orders-section-title">Заказы</h2>
-          {orderGroups.length === 0 ? (
+          {activeOrderGroups.length === 0 ? (
             <p className="section-empty">Нет заказов{searchQuery ? ' по запросу' : ''}.</p>
           ) : (
             <>
-              {orderGroups.length > MAX_DISPLAY_GROUPS && (
+              {activeOrderGroups.length > MAX_DISPLAY_GROUPS && (
                 <p className="ab-search-count" style={{ marginBottom: 8 }}>
-                  Показаны первые {MAX_DISPLAY_GROUPS} из {orderGroups.length}.
+                  Показаны первые {MAX_DISPLAY_GROUPS} из {activeOrderGroups.length}.
                 </p>
               )}
-              {orderGroups.slice(0, MAX_DISPLAY_GROUPS).map(group => (
+              {activeOrderGroups.slice(0, MAX_DISPLAY_GROUPS).map(group => (
           <div key={group.key} className="booking-group-card">
             {isGroupMarkedAsDeletedOrder(group) && (
               <div className="group-deleted-badge" role="status">
@@ -1000,6 +969,12 @@ export default function BookingOrders() {
                 <span className="client-name">{group.customerName}</span>
                 {group.customerPhone && (
                   <span className="client-phone">{group.customerPhone}</span>
+                )}
+                {(group.bookingOrderId ?? null) != null && (
+                  <span className="order-kind-badge order-kind-linked">
+                    заказ #{group.bookingOrderId}
+                    {group.bookings.length > 1 ? ` · ${group.bookings.length} брони` : ''}
+                  </span>
                 )}
               </div>
               <div className="group-header-right">
@@ -1190,7 +1165,13 @@ export default function BookingOrders() {
                   <button
                     className="btn-primary btn-pay"
                     onClick={() => handlePayment(group)}
-                    disabled={creatingPayment || !bankBotUsername.trim() || (group.totalAmount + (trailingPrices[group.key] || 0)) <= 0}
+                    title={!TELEGRAM_ONLINE_PAYMENT_ENABLED ? TELEGRAM_ONLINE_PAYMENT_DISABLED_MESSAGE : undefined}
+                    disabled={
+                      creatingPayment ||
+                      !TELEGRAM_ONLINE_PAYMENT_ENABLED ||
+                      (TELEGRAM_ONLINE_PAYMENT_ENABLED && !bankBotUsername.trim()) ||
+                      (group.totalAmount + (trailingPrices[group.key] || 0)) <= 0
+                    }
                   >
                     {creatingPayment ? 'Создание...' : 'Сформировать ссылку оплаты'}
                   </button>
@@ -1225,6 +1206,12 @@ export default function BookingOrders() {
                 <span className="client-name">{group.customerName}</span>
                 {group.customerPhone && (
                   <span className="client-phone">{group.customerPhone}</span>
+                )}
+                {(group.bookingOrderId ?? null) != null && (
+                  <span className="order-kind-badge order-kind-linked">
+                    заказ #{group.bookingOrderId}
+                    {group.bookings.length > 1 ? ` · ${group.bookings.length} брони` : ''}
+                  </span>
                 )}
               </div>
               <div className="group-header-right">
@@ -1380,7 +1367,13 @@ export default function BookingOrders() {
                   <button
                     className="btn-primary btn-pay"
                     onClick={() => handlePayment(group)}
-                    disabled={creatingPayment || !bankBotUsername.trim() || (group.totalAmount + (trailingPrices[group.key] || 0)) <= 0}
+                    title={!TELEGRAM_ONLINE_PAYMENT_ENABLED ? TELEGRAM_ONLINE_PAYMENT_DISABLED_MESSAGE : undefined}
+                    disabled={
+                      creatingPayment ||
+                      !TELEGRAM_ONLINE_PAYMENT_ENABLED ||
+                      (TELEGRAM_ONLINE_PAYMENT_ENABLED && !bankBotUsername.trim()) ||
+                      (group.totalAmount + (trailingPrices[group.key] || 0)) <= 0
+                    }
                   >
                     {creatingPayment ? 'Создание...' : 'Сформировать ссылку оплаты'}
                   </button>
@@ -1427,7 +1420,13 @@ export default function BookingOrders() {
             />
             <span style={{ fontSize: '13px', color: '#6b7280' }}>
               из {totalPages}
-              {totalElements > 0 && ` · всего ${totalElements} бронирований`}
+              {totalElements > 0 && (
+                <>
+                  {` · ${bookingsOnPage} брон. в загрузке`}
+                  {` · ${activeOrderGroups.length} заказов на странице`}
+                  {` · всего ${totalElements} бронирований`}
+                </>
+              )}
             </span>
             <button
               type="button"
@@ -1589,11 +1588,13 @@ export default function BookingOrders() {
       )}
 
       {/* Telegram Link Modal */}
-      <TelegramLinkModal
-        isOpen={showTelegramLink}
-        onClose={() => setShowTelegramLink(false)}
-        onSuccess={() => { setTelegramLinked(true); checkTelegramStatus() }}
-      />
+      {TELEGRAM_ONLINE_PAYMENT_ENABLED && (
+        <TelegramLinkModal
+          isOpen={showTelegramLink}
+          onClose={() => setShowTelegramLink(false)}
+          onSuccess={() => { setTelegramLinked(true); checkTelegramStatus() }}
+        />
+      )}
     </div>
   )
 }

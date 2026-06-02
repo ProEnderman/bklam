@@ -50,7 +50,7 @@ public class PublicOrderingService {
     public GuestSession resolveSession(String sessionToken) {
         if (sessionToken == null || sessionToken.isBlank()) return null;
         return guestSessionRepository
-                .findBySessionTokenAndExpiresAtAfter(sessionToken.trim(), LocalDateTime.now())
+                .findByLookupToken(sessionToken.trim())
                 .orElse(null);
     }
 

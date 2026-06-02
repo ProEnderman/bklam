@@ -1,6 +1,9 @@
 import { useEffect, useState, useRef } from 'react'
 import Modal from './Modal'
 import { telegramPaymentService } from '../api/telegramPaymentService'
+import {
+  TELEGRAM_ONLINE_PAYMENT_DISABLED_MESSAGE,
+} from '../config/paymentConfig'
 import './PaymentQrModal.css'
 
 export interface PaymentRequestSlot {
@@ -39,6 +42,8 @@ interface PaymentQrMultiModalProps {
   onPayOnline?: (slotIndex: number) => void | Promise<void>
   /** Блокировка кнопки «Оплатить онлайн» (например глобальная отправка). */
   payOnlineBusy?: boolean
+  /** false — только наличные, онлайн-кнопка с подсказкой. */
+  telegramOnlineEnabled?: boolean
   /** Не оплачено / оплачено наличными / оплачено онлайн (только после появления QR). */
   onMarkPaid?: (slotIndex: number, paymentRequestId: string | null, paid: boolean, paidVia?: 'ONLINE' | 'CASH') => void
 }
@@ -51,12 +56,14 @@ function QrSlot({
   mark,
   onPayOnline,
   payOnlineBusy,
+  telegramOnlineEnabled = true,
   onMarkPaid,
 }: PaymentRequestSlot & {
   slotIndex: number
   mark?: PaymentMarkState
   onPayOnline?: (slotIndex: number) => void | Promise<void>
   payOnlineBusy?: boolean
+  telegramOnlineEnabled?: boolean
   onMarkPaid?: (slotIndex: number, paymentRequestId: string | null, paid: boolean, paidVia?: 'ONLINE' | 'CASH') => void
 }) {
   const [qrUrl, setQrUrl] = useState<string | null>(null)
@@ -113,8 +120,9 @@ function QrSlot({
       </div>
       {isDraft && (
         <p className="payment-qr-multi-draft-hint">
-          Сообщение в Telegram ещё не отправлено. Нажмите «Оплатить онлайн» — запрос в бот и появление QR. Кнопка «Оплачено (онлайн)»
-          доступна только после того, как QR сформирован. «Оплачено наличными» — только отметка в системе, без Telegram.
+          {telegramOnlineEnabled
+            ? 'Сообщение в Telegram ещё не отправлено. Нажмите «Оплатить онлайн» — запрос в бот и появление QR. «Оплачено (онлайн)» — после QR. «Оплачено наличными» — без Telegram.'
+            : 'Отметьте «Оплачено наличными», когда гость расплатился. Онлайн-оплата через Telegram сейчас недоступна.'}
         </p>
       )}
       {error && <p className="qr-error">{error}</p>}
@@ -137,14 +145,19 @@ function QrSlot({
           {!paid && (
             <>
               {isDraft && onPayOnline && (
-                <button
-                  type="button"
-                  className="btn-primary btn-small"
-                  disabled={payOnlineBusy}
-                  onClick={() => void onPayOnline(slotIndex)}
+                <span
+                  className="payment-online-btn-wrap"
+                  title={!telegramOnlineEnabled ? TELEGRAM_ONLINE_PAYMENT_DISABLED_MESSAGE : undefined}
                 >
-                  Оплатить онлайн
-                </button>
+                  <button
+                    type="button"
+                    className="btn-primary btn-small"
+                    disabled={payOnlineBusy || !telegramOnlineEnabled}
+                    onClick={() => void onPayOnline(slotIndex)}
+                  >
+                    Оплатить онлайн
+                  </button>
+                </span>
               )}
               {!isDraft && id && qrUrl && onMarkPaid && (
                 <button
@@ -202,6 +215,7 @@ export default function PaymentQrMultiModal({
   paymentMarks = {},
   onPayOnline,
   payOnlineBusy,
+  telegramOnlineEnabled = true,
   onMarkPaid,
 }: PaymentQrMultiModalProps) {
   return (
@@ -219,6 +233,7 @@ export default function PaymentQrMultiModal({
               mark={resolveMultiSlotMark(r, idx, orderId, paymentMarks)}
               onPayOnline={onPayOnline}
               payOnlineBusy={payOnlineBusy}
+              telegramOnlineEnabled={telegramOnlineEnabled}
               onMarkPaid={onMarkPaid}
             />
           ))}

@@ -105,6 +105,8 @@ export default function NewOrder() {
 
   /** Черновик разделения счёта по гостям до создания заказа. По каждой позиции (индекс) задаём qty на гостя. */
   const [splitDraft, setSplitDraft] = useState<{ shares: SplitDraftShare[] } | null>(null)
+  /** false, пока split bill не покрывает все позиции заказа (режим Edit Order) */
+  const [splitEditorValid, setSplitEditorValid] = useState(true)
   const [showSplitDraftForm, setShowSplitDraftForm] = useState(false)
   const [shareGuestPickIndex, setShareGuestPickIndex] = useState<number | null>(null)
   const [shareGuestSearchQuery, setShareGuestSearchQuery] = useState('')
@@ -309,6 +311,9 @@ export default function NewOrder() {
       }
       console.log('[loadOrder] Safe order:', safeOrder)
       setCurrentOrder(safeOrder)
+      if (!safeOrder.hasSplit) {
+        setSplitEditorValid(true)
+      }
       if (order.name) {
         setOrderName(order.name)
       }
@@ -327,9 +332,16 @@ export default function NewOrder() {
         status: error?.response?.status
       })
       // Если заказ не найден, показываем ошибку
-      if (error?.response?.status === 404) {
-        alert('Order not found')
+      const status = error?.response?.status
+      const msg = error?.response?.data?.message as string | undefined
+      if (status === 404) {
+        alert('Заказ не найден')
         navigate('/orders')
+      } else if (status === 403 || (status === 400 && msg?.toLowerCase().includes('access denied'))) {
+        alert('Нет доступа к этому заказу')
+        navigate('/orders')
+      } else {
+        alert(msg || 'Не удалось загрузить заказ')
       }
     }
   }
@@ -709,9 +721,12 @@ export default function NewOrder() {
   }
 
   const handleCreateOrder = async () => {
-    // Если редактируем существующий заказ, просто возвращаемся
     if (currentOrder) {
-      navigate('/orders')
+      if (currentOrder.hasSplit && !splitEditorValid) {
+        alert('Сначала распределите все блюда по гостям: нажмите «Изменить разделение» и сохраните разделение счёта.')
+        return
+      }
+      navigate(`/orders/${currentOrder.id}`)
       return
     }
 
@@ -926,11 +941,18 @@ if (splitDraft && splitDraft.shares.length > 0) {
   const hasSplitDraft = !currentOrder && splitDraft != null
   /** Новый заказ + активен черновик разделения: две отдельные колонки (позиции | гости) */
   const splitModeNewOrder = !currentOrder && splitDraft != null
+  /** Редактирование заказа с split bill — две колонки, список гостей прокручивается отдельно */
+  const splitModeEditOrder =
+    currentOrder != null &&
+    currentOrder.hasSplit === true &&
+    hasSplitPanel
+  const useSplitColumnLayout = splitModeNewOrder || splitModeEditOrder
+  const orderRequiresSplit = currentOrder?.hasSplit === true
 
   return (
     <div className="new-order-page">
       <h1>{orderIdParam ? 'Edit Order' : 'New Order'}</h1>
-      <div className={`order-layout${splitModeNewOrder ? ' split-order-layout' : ''}`}>
+      <div className={`order-layout${useSplitColumnLayout ? ' split-order-layout' : ''}`}>
         <div className="dishes-panel">
           {selectedCategoryId ? (
             <>
@@ -1052,7 +1074,7 @@ if (splitDraft && splitDraft.shares.length > 0) {
           )}
         </div>
 
-        <div className={splitModeNewOrder ? 'order-side-split-root' : 'order-panel'}>
+        <div className={useSplitColumnLayout ? 'order-side-split-root' : 'order-panel'}>
           <div className="order-panel-top">
           <div className="order-header">
             <h2>{orderIdParam ? 'Edit Order' : 'New Order'}</h2>
@@ -1182,8 +1204,8 @@ if (splitDraft && splitDraft.shares.length > 0) {
           )}
           </div>
 
-          <div className={`order-panel-body${splitModeNewOrder ? ' split-mode-layout' : ''}`}>
-            {splitModeNewOrder ? (
+          <div className={`order-panel-body${useSplitColumnLayout ? ' split-mode-layout' : ''}`}>
+            {useSplitColumnLayout ? (
               <>
                 <NewOrderItemsColumn
                   variant="splitColumn"
@@ -1238,11 +1260,13 @@ if (splitDraft && splitDraft.shares.length > 0) {
                     setSplitDraft({ shares: [{ name: 'Гость 1', pendingQtys: {} }] })
                     setShowSplitDraftForm(true)
                   }}
+                  orderRequiresSplit={orderRequiresSplit}
+                  onSplitValidityChange={setSplitEditorValid}
                 />
               </>
             ) : (
               <>
-                {hasSplitPanel && (
+                {hasSplitPanel && !orderRequiresSplit && (
                   <NewOrderGuestSplitColumn
                     variant="stacked"
                     currentOrder={currentOrder}
@@ -1307,6 +1331,11 @@ if (splitDraft && splitDraft.shares.length > 0) {
               <span>Total:</span>
               <span className="total-amount">${totalAmount.toFixed(2)}</span>
             </div>
+            {orderRequiresSplit && !splitEditorValid && (
+              <p className="order-split-footer-warn">
+                Распределите все блюда по гостям перед выходом. Откройте «Изменить разделение» в колонке справа.
+              </p>
+            )}
             <div className="order-actions">
               <button
                 className="btn-secondary"
@@ -1324,10 +1353,16 @@ if (splitDraft && splitDraft.shares.length > 0) {
                 disabled={
                   (!currentOrder && pendingItems.length === 0) ||
                   saving ||
+                  (orderRequiresSplit && !splitEditorValid) ||
                   (splitDraft != null &&
                     !pendingItems.every((item, idx) =>
                       splitDraft.shares.reduce((sum, s) => sum + (s.pendingQtys[idx] ?? 0), 0) === item.qty
                     ))
+                }
+                title={
+                  orderRequiresSplit && !splitEditorValid
+                    ? 'Сначала сохраните корректное разделение счёта по всем блюдам'
+                    : undefined
                 }
               >
                 {saving ? 'Creating...' : currentOrder ? 'Done' : 'Create Order'}

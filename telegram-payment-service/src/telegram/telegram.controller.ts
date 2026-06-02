@@ -224,7 +224,7 @@ export class TelegramController {
   @Get('status')
   @Roles(Role.ADMIN, Role.OWNER, Role.MANAGER, Role.CASHIER)
   async getStatus(@CurrentUser() user: CurrentUserData) {
-    return this.mtprotoService.getStatus(user.id);
+    return this.mtprotoService.getStatus(user.id, user.restaurantId);
   }
 
   /**
@@ -239,7 +239,8 @@ export class TelegramController {
     @Body() dto: UpdateTelegramSettingsDto,
     @Req() req: Request,
   ) {
-    const result = await this.mtprotoService.updateBankBotUsername(
+    const result = await this.mtprotoService.updateRestaurantBankBotUsername(
+      user.restaurantId,
       user.id,
       dto.bankBotUsername,
     );
@@ -263,6 +264,6 @@ export class TelegramController {
   @Get('settings')
   @Roles(Role.ADMIN, Role.OWNER, Role.MANAGER, Role.CASHIER)
   async getSettings(@CurrentUser() user: CurrentUserData) {
-    return this.mtprotoService.getSettings(user.id);
+    return this.mtprotoService.getRestaurantSettings(user.restaurantId, user.id);
   }
 }

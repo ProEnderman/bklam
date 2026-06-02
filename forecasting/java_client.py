@@ -70,8 +70,103 @@ def orders_to_revenue_timeseries(rows: list[dict], since: date) -> TimeSeries:
     )
 
 
+def get_tariff_revenue_data(from_date: date, to_date: date, token: str) -> list[dict[str, Any]]:
+    """PAID tariff booking revenue per day (by start_at). Returns {day, revenue}."""
+    url = f"{JAVA_BACKEND_URL}/api/internal/forecast-data/tariff-revenue"
+    params = {"from": from_date.isoformat(), "to": to_date.isoformat()}
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    try:
+        r = requests.get(url, params=params, headers=headers, timeout=30)
+        data = r.json() if r.content else []
+        if r.status_code != 200:
+            logger.warning("Java tariff-revenue returned %s", r.status_code)
+            return []
+        logger.info("Java tariff-revenue returned %s rows for %s..%s", len(data), from_date, to_date)
+        return data if isinstance(data, list) else []
+    except requests.RequestException as e:
+        logger.warning("Java tariff-revenue request failed: %s", e)
+        return []
+
+
+def tariff_revenue_to_timeseries(rows: list[dict], since: date) -> TimeSeries:
+    """Daily PAID tariff booking revenue."""
+    if not rows:
+        return TimeSeries(pd.DatetimeIndex([]), np.array([]), "revenue")
+    df = pd.DataFrame(rows)
+    df["ds"] = pd.to_datetime(df["day"])
+    df["y"] = pd.to_numeric(df.get("revenue", 0), errors="coerce").fillna(0.0)
+    df = df.set_index("ds").sort_index()
+    df = df[~df.index.duplicated(keep="last")]
+    if df.empty:
+        return TimeSeries(pd.DatetimeIndex([]), np.array([]), "revenue")
+    full = pd.date_range(df.index.min(), df.index.max(), freq="D")
+    df = df.reindex(full)
+    df["y"] = df["y"].fillna(0.0)
+    return TimeSeries(
+        dates=pd.DatetimeIndex(df.index),
+        values=df["y"].values.astype(np.float64),
+        name="revenue",
+    )
+
+
+def get_tariff_bookings_data(from_date: date, to_date: date, token: str) -> list[dict[str, Any]]:
+    """PAID tariff bookings per day (by start_at). Returns {day, count}."""
+    url = f"{JAVA_BACKEND_URL}/api/internal/forecast-data/tariff-bookings"
+    params = {"from": from_date.isoformat(), "to": to_date.isoformat()}
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    try:
+        r = requests.get(url, params=params, headers=headers, timeout=30)
+        data = r.json() if r.content else []
+        if r.status_code != 200:
+            logger.warning("Java tariff-bookings returned %s", r.status_code)
+            return []
+        logger.info("Java tariff-bookings returned %s rows for %s..%s", len(data), from_date, to_date)
+        return data if isinstance(data, list) else []
+    except requests.RequestException as e:
+        logger.warning("Java tariff-bookings request failed: %s", e)
+        return []
+
+
+def get_tariff_bookings_by_activity_data(from_date: date, to_date: date, token: str) -> list[dict[str, Any]]:
+    url = f"{JAVA_BACKEND_URL}/api/internal/forecast-data/tariff-bookings-by-activity"
+    params = {"from": from_date.isoformat(), "to": to_date.isoformat()}
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    try:
+        r = requests.get(url, params=params, headers=headers, timeout=30)
+        data = r.json() if r.content else []
+        if r.status_code != 200:
+            logger.warning("Java tariff-bookings-by-activity returned %s", r.status_code)
+            return []
+        return data if isinstance(data, list) else []
+    except requests.RequestException as e:
+        logger.warning("Java tariff-bookings-by-activity request failed: %s", e)
+        return []
+
+
+def tariff_bookings_to_timeseries(rows: list[dict], since: date) -> TimeSeries:
+    """Daily PAID tariff booking counts."""
+    if not rows:
+        return TimeSeries(pd.DatetimeIndex([]), np.array([]), "bookings")
+    df = pd.DataFrame(rows)
+    df["ds"] = pd.to_datetime(df["day"])
+    col = "count" if "count" in df.columns else "cnt"
+    df["y"] = pd.to_numeric(df.get(col, 0), errors="coerce").fillna(0.0)
+    df = df.set_index("ds").sort_index()
+    df = df[~df.index.duplicated(keep="last")]
+    if df.empty:
+        return TimeSeries(pd.DatetimeIndex([]), np.array([]), "bookings")
+    full = pd.date_range(df.index.min(), df.index.max(), freq="D")
+    df = df.reindex(full)
+    df["y"] = df["y"].fillna(0.0)
+    return TimeSeries(
+        dates=pd.DatetimeIndex(df.index),
+        values=df["y"].values.astype(np.float64),
+        name="bookings",
+    )
+
+
 def orders_to_bookings_timeseries(rows: list[dict], since: date) -> TimeSeries:
-    """Convert Java orders response to TimeSeries (bookings = itemsCount per day)."""
+    """Convert Java orders response to TimeSeries (order_items = itemsCount per day)."""
     if not rows:
         return TimeSeries(pd.DatetimeIndex([]), np.array([]), "bookings")
     df = pd.DataFrame(rows)

@@ -198,3 +198,180 @@
 .btn-success:hover {
   background: #218838;
 }
+
+/* --- Client picker (как в Bookings, локально для модалки) --- */
+.reservation-form .client-picker-section {
+  position: relative;
+}
+
+.reservation-form .client-picker-header {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.reservation-form .client-picker-header > label {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 14px;
+}
+
+.reservation-form .client-picker-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 2px;
+}
+
+.tr-client-search {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.tr-client-search:focus {
+  border-color: #667eea;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.15);
+}
+
+.tr-client-dropdown {
+  position: absolute;
+  z-index: 100;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.reservation-form .client-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.reservation-form .client-dropdown-item:hover {
+  background: #f0f4ff;
+}
+
+.reservation-form .client-dropdown-name {
+  font-weight: 500;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reservation-form .client-dropdown-phone {
+  color: #666;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.reservation-form .client-dropdown-count {
+  color: #999;
+  font-size: 12px;
+  flex-shrink: 0;
+  background: #f0f0f0;
+  padding: 2px 6px;
+  border-radius: 10px;
+}
+
+.reservation-form .client-dropdown-empty {
+  padding: 12px;
+  color: #999;
+  font-size: 14px;
+  text-align: center;
+}
+
+.tr-client-dropdown-more {
+  font-size: 11px;
+  color: #6b7280;
+  padding: 4px 8px;
+}
+
+.reservation-form .client-dropdown-restore {
+  text-align: center;
+  padding: 8px 12px;
+  color: #667eea;
+  font-size: 13px;
+  cursor: pointer;
+  border-top: 1px solid #f3f4f6;
+}
+
+.reservation-form .client-dropdown-restore:hover {
+  background: #f0f4ff;
+}
+
+.reservation-form .client-dropdown-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.reservation-form .client-dropdown-hide {
+  font-size: 13px;
+  padding: 3px 5px;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0.4;
+}
+
+.reservation-form .client-dropdown-hide:hover {
+  opacity: 1;
+  background: #f0f4ff;
+}
+
+.btn-import-excel-small {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.btn-import-excel-small:hover {
+  background: #d1fae5;
+  border-color: #6ee7b7;
+}
+
+.btn-clear-imported-small {
+  background: none;
+  border: 1px solid #fca5a5;
+  color: #dc2626;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 5px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.btn-clear-imported-small:hover {
+  background: #fef2f2;
+}

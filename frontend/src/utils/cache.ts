@@ -38,6 +38,24 @@ export function clearCache(key: string): void {
   }
 }
 
+/** Удаляет все ключи sessionStorage, начинающиеся с prefix (включая *_timestamp). */
+export function clearCacheByPrefix(prefix: string): void {
+  try {
+    const toRemove: string[] = []
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const k = sessionStorage.key(i)
+      if (k != null && k.startsWith(prefix)) {
+        toRemove.push(k)
+      }
+    }
+    for (const k of toRemove) {
+      sessionStorage.removeItem(k)
+    }
+  } catch (e) {
+    console.warn(`[Cache] Failed to clear cache by prefix ${prefix}:`, e)
+  }
+}
+
 
 
 

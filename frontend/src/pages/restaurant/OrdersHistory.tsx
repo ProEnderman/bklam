@@ -23,6 +23,7 @@ export default function OrdersHistory() {
   const isAdmin = user?.role === 'ADMIN'
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [page, setPage] = useState(0)
   const [pageSize] = useState(50)
   const [totalPages, setTotalPages] = useState(0)
@@ -57,6 +58,7 @@ export default function OrdersHistory() {
   const loadOrders = async (pageToLoad: number, isBackground = false) => {
     if (!isBackground) {
       setLoading(true)
+      setLoadError(null)
     }
     try {
       const filters: any = {
@@ -87,9 +89,18 @@ export default function OrdersHistory() {
         setPageInputValue(String(pageData.number + 1))
       }
       console.log(`[OrdersHistory] page ${pageToLoad} loaded, ${ordersArray.length} items, total ${pageData?.totalElements ?? 0}`)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to load orders:', error)
       if (!isBackground) {
+        const msg = error?.response?.data?.message as string | undefined
+        const status = error?.response?.status
+        if (status === 401) {
+          setLoadError('Сессия истекла. Войдите снова.')
+        } else if (status === 403) {
+          setLoadError('Нет доступа к списку заказов')
+        } else {
+          setLoadError(msg || 'Не удалось загрузить заказы')
+        }
         setOrders([])
         setTotalPages(0)
         setTotalElements(0)
@@ -421,11 +432,20 @@ export default function OrdersHistory() {
         )}
       </div>
 
+      {loadError && (
+        <div className="orders-load-error" role="alert">
+          {loadError}
+          <button type="button" className="btn-small btn-secondary" style={{ marginLeft: 8 }} onClick={() => loadOrders(page, false)}>
+            Повторить
+          </button>
+        </div>
+      )}
+
       <DataTable
         data={displayOrders}
         columns={columns}
         loading={loading}
-        emptyMessage="No orders found"
+        emptyMessage={loadError ? ' ' : 'No orders found'}
         onRowClick={(order) => navigate(`/orders/${order.id}`)}
       />
       {totalPages > 1 && (

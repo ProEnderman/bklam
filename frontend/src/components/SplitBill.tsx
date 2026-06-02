@@ -10,6 +10,24 @@ interface Props {
   orderId: number
   orderStatus: string
   items: OrderItem[]
+  /** Заказ помечен как split bill — родитель блокирует выход, пока valid === false */
+  requiresSplit?: boolean
+  onValidityChange?: (valid: boolean) => void
+  onSplitChange?: (split: OrderSplitDto | null) => void
+}
+
+export function isSplitValidForOrderItems(split: OrderSplitDto | null, items: OrderItem[]): boolean {
+  if (!split || split.shares.length === 0) return false
+  if (items.length === 0) return true
+  for (const item of items) {
+    const need = item.qty ?? 1
+    const assigned = split.shares.reduce((sum, sh) => {
+      const line = sh.items.find((i) => i.itemId === item.id)
+      return sum + (line?.qty ?? 0)
+    }, 0)
+    if (assigned !== need) return false
+  }
+  return split.shares.every((sh) => sh.items.some((i) => i.qty > 0))
 }
 
 interface ShareDraft {
@@ -21,7 +39,14 @@ interface ShareDraft {
   newGuestPhone?: string
 }
 
-export default function SplitBill({ orderId, orderStatus, items }: Props) {
+export default function SplitBill({
+  orderId,
+  orderStatus,
+  items,
+  requiresSplit = false,
+  onValidityChange,
+  onSplitChange,
+}: Props) {
   const [split, setSplit] = useState<OrderSplitDto | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -46,6 +71,41 @@ export default function SplitBill({ orderId, orderStatus, items }: Props) {
   }, [orderId])
 
   useEffect(() => { load() }, [load])
+
+  useEffect(() => {
+    onSplitChange?.(split)
+  }, [split, onSplitChange])
+
+  useEffect(() => {
+    if (!onValidityChange) return
+    if (!requiresSplit) {
+      onValidityChange(true)
+      return
+    }
+    if (loading) {
+      onValidityChange(false)
+      return
+    }
+    if (showForm) {
+      const formAllAssigned =
+        items.length > 0 &&
+        items.every((item) => {
+          const total = item.qty ?? 1
+          const assigned = shares.reduce((sum, s) => sum + (s.itemQtys[item.id] ?? 0), 0)
+          return assigned === total
+        })
+      const formSharesOk = shares.every(
+        (s) => s.name.trim() && Object.values(s.itemQtys).some((q) => (q ?? 0) > 0)
+      )
+      onValidityChange(formAllAssigned && formSharesOk)
+      return
+    }
+    if (!split) {
+      onValidityChange(false)
+      return
+    }
+    onValidityChange(isSplitValidForOrderItems(split, items))
+  }, [requiresSplit, loading, showForm, shares, split, items, onValidityChange])
 
   useEffect(() => {
     if (shareGuestPickIndex == null) return
@@ -132,6 +192,7 @@ export default function SplitBill({ orderId, orderStatus, items }: Props) {
       }
       const result = await splitService.createSplit(orderId, { shares: body })
       setSplit(result)
+      onSplitChange?.(result)
       setShowForm(false)
     } catch (err: any) {
       if (err.response?.status === 409) setError('Разделение для этого заказа уже создано')
@@ -147,6 +208,7 @@ export default function SplitBill({ orderId, orderStatus, items }: Props) {
     try {
       await splitService.deleteSplit(orderId)
       setSplit(null)
+      onSplitChange?.(null)
     } catch {
       setError('Не удалось удалить разделение')
     }
@@ -179,6 +241,11 @@ export default function SplitBill({ orderId, orderStatus, items }: Props) {
               </div>
             ))}
           </div>
+          {requiresSplit && !isSplitValidForOrderItems(split, items) && (
+            <div className="split-unassigned-warn" style={{ marginTop: 12 }}>
+              Не все блюда распределены по гостям. Нажмите «Изменить разделение» и укажите порции для каждой позиции.
+            </div>
+          )}
           {canEditSplit && (
             <div className="split-bill-actions" style={{ marginTop: 12 }}>
               <button

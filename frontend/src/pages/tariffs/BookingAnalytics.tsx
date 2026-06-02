@@ -112,8 +112,8 @@ function DashboardContent() {
         { title: 'Клиентская база', kpis: [
           { label: 'Уникальных клиентов', value: fmt(conversion?.uniqueClients) },
           { label: 'Повторных клиентов', value: fmt(conversion?.repeatClients) },
-          { label: 'Конверсия → оплата', value: pct(conversion?.funnel?.confirmedToPaidPct) },
-          { label: 'Воронка: черновики', value: fmt(conversion?.funnel?.draft) },
+          { label: 'Конверсия → оплата', value: pct(conversion?.paymentConversionPct) },
+          { label: 'Воронка: всего', value: fmt(conversion?.funnel?.total ?? volume?.total) },
           { label: 'Воронка: подтверждённые', value: fmt(conversion?.funnel?.confirmed) },
           { label: 'Воронка: оплаченные', value: fmt(conversion?.funnel?.paid) },
         ]},

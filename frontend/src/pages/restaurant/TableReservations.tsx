@@ -1,10 +1,28 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { tableReservationService, hallService } from '../../api/services'
 import type { TableReservation, HallTable } from '../../api/types'
+import {
+  getImportedClients,
+  addImportedClients,
+  removeImportedClient,
+  parseClientExcel,
+  clearImportedClients,
+  getHiddenClients,
+  hideClient,
+  clearHiddenClients,
+} from '../../utils/clientStore'
+import type { StoredClient } from '../../utils/clientStore'
 import DataTable from '../../components/DataTable'
 import Modal from '../../components/Modal'
 import FormInput from '../../components/FormInput'
 import './TableReservations.css'
+
+interface KnownClient {
+  name: string
+  phone: string
+  /** активных бронирований столика (не отменённых) */
+  reservationCount: number
+}
 
 /** Форматирует Date в строку "YYYY-MM-DDTHH:mm" в локальном времени */
 function toLocalDatetimeInput(date: Date): string {
@@ -18,11 +36,20 @@ function toLocalDatetimeInput(date: Date): string {
 
 export default function TableReservations() {
   const [reservations, setReservations] = useState<TableReservation[]>([])
+  /** Все бронирования ресторана — для списка «из базы» (имя/телефон) */
+  const [allReservationsForClients, setAllReservationsForClients] = useState<TableReservation[]>([])
   const [tables, setTables] = useState<HallTable[]>([])
   const [loading, setLoading] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [editingReservation, setEditingReservation] = useState<TableReservation | null>(null)
   const [filterTableId, setFilterTableId] = useState<number | undefined>(undefined)
+
+  const [clientSearch, setClientSearch] = useState('')
+  const [showClientDropdown, setShowClientDropdown] = useState(false)
+  const clientDropdownRef = useRef<HTMLDivElement>(null)
+  const [importedClients, setImportedClients] = useState<StoredClient[]>(getImportedClients())
+  const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(getHiddenClients())
+  const excelFileRef = useRef<HTMLInputElement>(null)
 
   // Form state
   const [guestsInput, setGuestsInput] = useState('2')
@@ -42,6 +69,94 @@ export default function TableReservations() {
     loadReservations()
   }, [filterTableId])
 
+  useEffect(() => {
+    const onDocMouseDown = (e: MouseEvent) => {
+      if (clientDropdownRef.current && !clientDropdownRef.current.contains(e.target as Node)) {
+        setShowClientDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', onDocMouseDown)
+    return () => document.removeEventListener('mousedown', onDocMouseDown)
+  }, [])
+
+  const knownClients = useMemo<KnownClient[]>(() => {
+    const map = new Map<string, KnownClient>()
+    for (const r of allReservationsForClients) {
+      if (!r.customerName && !r.customerPhone) continue
+      const key = `${(r.customerName || '').toLowerCase()}|${(r.customerPhone || '').toLowerCase()}`
+      const isActive = r.status !== 'CANCELLED'
+      const existing = map.get(key)
+      if (existing) {
+        if (isActive) existing.reservationCount++
+      } else {
+        map.set(key, {
+          name: r.customerName || '',
+          phone: r.customerPhone || '',
+          reservationCount: isActive ? 1 : 0,
+        })
+      }
+    }
+    for (const ic of importedClients) {
+      if (!ic.name && !ic.phone) continue
+      const key = `${ic.name.toLowerCase()}|${ic.phone.toLowerCase()}`
+      if (!map.has(key)) {
+        map.set(key, { name: ic.name, phone: ic.phone, reservationCount: 0 })
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name))
+  }, [allReservationsForClients, importedClients])
+
+  const filteredClients = useMemo(() => {
+    const visible = knownClients.filter(c => {
+      const key = `${(c.name || '').trim().toLowerCase()}|${(c.phone || '').trim().toLowerCase()}`
+      return !hiddenKeys.has(key)
+    })
+    if (!clientSearch.trim()) return visible
+    const q = clientSearch.toLowerCase()
+    return visible.filter(c => c.name.toLowerCase().includes(q) || c.phone.toLowerCase().includes(q))
+  }, [knownClients, clientSearch, hiddenKeys])
+
+  const handleSelectClient = (client: KnownClient) => {
+    setFormData(prev => ({ ...prev, customerName: client.name, customerPhone: client.phone }))
+    setClientSearch('')
+    setShowClientDropdown(false)
+  }
+
+  const handleExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const parsed = await parseClientExcel(file)
+      const updated = addImportedClients(parsed)
+      setImportedClients(updated)
+      alert(`Импортировано клиентов: ${parsed.length}`)
+    } catch (err: any) {
+      alert(err.message || 'Ошибка при импорте файла')
+    }
+    if (excelFileRef.current) excelFileRef.current.value = ''
+  }
+
+  const handleClearImported = () => {
+    if (!confirm(`Удалить всех импортированных клиентов (${importedClients.length})?`)) return
+    clearImportedClients()
+    setImportedClients([])
+  }
+
+  const handleHideClient = (c: KnownClient, e: React.MouseEvent) => {
+    e.stopPropagation()
+    e.preventDefault()
+    if (c.reservationCount === 0) {
+      setImportedClients(removeImportedClient(c.name, c.phone))
+    } else {
+      setHiddenKeys(new Set(hideClient(c.name, c.phone)))
+    }
+  }
+
+  const handleRestoreHidden = () => {
+    clearHiddenClients()
+    setHiddenKeys(new Set())
+  }
+
   const loadTables = async () => {
     try {
       const data = await hallService.getActiveTablesOnMap()
@@ -54,14 +169,19 @@ export default function TableReservations() {
   const loadReservations = async () => {
     setLoading(true)
     try {
-      const filters: any = {}
-      if (filterTableId) filters.tableId = filterTableId
-      const data = await tableReservationService.getReservations(filters)
-      const filteredData = data.filter((r: TableReservation) => r.status !== 'CANCELLED')
-      setReservations(filteredData)
+      const allData = await tableReservationService.getReservations({})
+      setAllReservationsForClients(allData)
+      const visible = filterTableId
+        ? allData.filter(
+            (r: TableReservation) =>
+              r.status !== 'CANCELLED' && (r.tableIds || []).includes(filterTableId),
+          )
+        : allData.filter((r: TableReservation) => r.status !== 'CANCELLED')
+      setReservations(visible)
     } catch (error) {
       console.error('Failed to load reservations:', error)
       setReservations([])
+      setAllReservationsForClients([])
     } finally {
       setLoading(false)
     }
@@ -84,6 +204,8 @@ export default function TableReservations() {
   const handleCreate = () => {
     setEditingReservation(null)
     resetForm()
+    setClientSearch('')
+    setShowClientDropdown(false)
     if (filterTableId) {
       setSelectedTableIds([filterTableId])
     }
@@ -112,6 +234,8 @@ export default function TableReservations() {
       customerPhone: reservation.customerPhone || '',
       notes: reservation.notes || '',
     })
+    setClientSearch('')
+    setShowClientDropdown(false)
     setShowModal(true)
   }
 
@@ -328,6 +452,100 @@ export default function TableReservations() {
               onChange={(value) => setFormData({ ...formData, endAt: value })}
               required
             />
+          </div>
+          <div className="client-picker-section" ref={clientDropdownRef}>
+            <div className="client-picker-header">
+              <label>
+                <span>Клиент из базы (поиск):</span>
+                <input
+                  type="text"
+                  className="client-search-input tr-client-search"
+                  placeholder="Имя или телефон — выберите из списка или введите вручную ниже"
+                  value={clientSearch}
+                  onChange={e => {
+                    setClientSearch(e.target.value)
+                    setShowClientDropdown(true)
+                  }}
+                  onFocus={() => setShowClientDropdown(true)}
+                />
+              </label>
+              <div className="client-picker-actions">
+                <button
+                  type="button"
+                  className="btn-import-excel-small"
+                  onClick={() => excelFileRef.current?.click()}
+                  title="Excel: столбец 1 — имя, столбец 2 — телефон (общий список с разделом «Бронирования»)"
+                >
+                  📥 Excel
+                </button>
+                <input
+                  ref={excelFileRef}
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  style={{ display: 'none' }}
+                  onChange={handleExcelUpload}
+                />
+                {importedClients.length > 0 && (
+                  <button
+                    type="button"
+                    className="btn-clear-imported-small"
+                    onClick={handleClearImported}
+                    title={`Удалить ${importedClients.length} импортированных`}
+                  >
+                    🗑 ({importedClients.length})
+                  </button>
+                )}
+              </div>
+            </div>
+            {showClientDropdown && filteredClients.length > 0 && (
+              <ul className="client-dropdown tr-client-dropdown">
+                {filteredClients.slice(0, 100).map((c, idx) => (
+                  <li
+                    key={`${c.name}|${c.phone}|${idx}`}
+                    className="client-dropdown-item"
+                    onMouseDown={() => handleSelectClient(c)}
+                  >
+                    <span className="client-dropdown-name">{c.name || '—'}</span>
+                    <span className="client-dropdown-phone">{c.phone || '—'}</span>
+                    <span className="client-dropdown-count">
+                      {c.reservationCount > 0 ? `${c.reservationCount} бр.` : '📥'}
+                    </span>
+                    <span className="client-dropdown-actions">
+                      <span
+                        className="client-dropdown-hide"
+                        onMouseDown={e => handleHideClient(c, e)}
+                        title="Скрыть из списка"
+                      >
+                        👁‍🗨
+                      </span>
+                    </span>
+                  </li>
+                ))}
+                {filteredClients.length > 100 && (
+                  <li className="client-dropdown-more tr-client-dropdown-more">
+                    Показано 100 из {filteredClients.length}. Уточните поиск.
+                  </li>
+                )}
+                {hiddenKeys.size > 0 && (
+                  <li className="client-dropdown-restore" onMouseDown={handleRestoreHidden}>
+                    Показать скрытых ({hiddenKeys.size})
+                  </li>
+                )}
+              </ul>
+            )}
+            {showClientDropdown && filteredClients.length === 0 && (
+              <div className="client-dropdown client-dropdown-empty tr-client-dropdown">
+                Клиент не найден
+                {hiddenKeys.size > 0 && (
+                  <>
+                    .{' '}
+                    <button type="button" className="btn-link" onMouseDown={handleRestoreHidden}>
+                      Показать скрытых ({hiddenKeys.size})
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
           </div>
           <div className="form-row">
             <FormInput

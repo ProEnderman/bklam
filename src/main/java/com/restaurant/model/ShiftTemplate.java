@@ -49,6 +49,11 @@ public class ShiftTemplate {
     @JdbcTypeCode(SqlTypes.JSON)
     private List<Integer> daysOfWeek = new ArrayList<>();
 
+    /** Время по каждому дню; если задано — при генерации используется вместо единого startTime/endTime. */
+    @Column(name = "day_schedules")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private List<ShiftTemplateDaySchedule> daySchedules = new ArrayList<>();
+
     @Enumerated(EnumType.STRING)
     @Column(name = "shift_type")
     private Shift.ShiftType shiftType = Shift.ShiftType.REGULAR;

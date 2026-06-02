@@ -61,6 +61,12 @@
   color: white;
 }
 
+/* Temporarily hidden from Management; routes remain available directly. */
+.sidebar-nav a[href="/users"],
+.sidebar-nav a[href="/shifts"] {
+  display: none;
+}
+
 /* Folder toggles */
 .nav-folder {
   margin-bottom: 0;

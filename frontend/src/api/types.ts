@@ -374,7 +374,7 @@ export interface ActivityLog {
 // Excel Upload types
 export interface ExcelUploadError {
   item: string
-  type: 'UNIT_MISMATCH' | 'UNIT_MISSING'
+  type: 'UNIT_MISMATCH' | 'UNIT_MISSING' | 'INGREDIENT_MISSING'
   existingUnit?: Unit
   providedUnit?: Unit
   rowNumber: number
@@ -394,7 +394,10 @@ export interface ResolveUnitMismatchRequest {
   updateExisting: boolean
 }
 
-// Tariff types
+export interface ResolveIngredientMissingRequest {
+  createNew: boolean
+  minQty?: number
+}
 export type RuleType = 'STANDARD' | 'WEEKEND' | 'HOLIDAY' | 'SPECIAL'
 export type RoundingType = 'STANDARD' | 'UP' | 'DOWN' | 'BANKERS' | 'TO_ONE'
 
@@ -545,6 +548,12 @@ export interface UpdateShiftRequest {
   comment?: string
 }
 
+export interface ShiftTemplateDaySchedule {
+  day: number
+  startTime: string
+  endTime: string
+}
+
 export interface ShiftTemplate {
   id: number
   name: string
@@ -554,6 +563,8 @@ export interface ShiftTemplate {
   dayOfWeek?: string
   /** ISO 1=Пн … 7=Вс; если задан — шаблон только на эти дни */
   daysOfWeek?: number[] | null
+  /** Разное время по дням (ISO 1–7) */
+  daySchedules?: ShiftTemplateDaySchedule[] | null
   shiftType?: ShiftType
   recurrenceRule?: string
   validFrom?: string
@@ -570,6 +581,7 @@ export interface CreateShiftTemplateRequest {
   dayOfWeek?: number
   /** Несколько дней (1–7); если задано — приоритетнее одного dayOfWeek */
   daysOfWeek?: number[]
+  daySchedules?: ShiftTemplateDaySchedule[]
   shiftType?: ShiftType
   recurrenceRule?: string
 }

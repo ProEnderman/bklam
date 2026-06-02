@@ -89,17 +89,17 @@ public class PlatformNetworkService {
     // ---------- Locations ----------
     public List<Location> findLocationsByHoldingId(Long holdingId) {
         requireHeadAdmin();
-        return locationRepository.findByHoldingId(holdingId);
+        return locationRepository.findByHoldingIdWithAssociations(holdingId);
     }
 
     public List<Location> findAllLocations() {
         requireHeadAdmin();
-        return locationRepository.findAll();
+        return locationRepository.findAllWithAssociations();
     }
 
     public Location getLocationById(Long id) {
         requireHeadAdmin();
-        return locationRepository.findById(id)
+        return locationRepository.findByIdWithAssociations(id)
                 .orElseThrow(() -> new com.restaurant.exception.ResourceNotFoundException("Location not found: " + id));
     }
 
@@ -123,7 +123,7 @@ public class PlatformNetworkService {
 
     /** Resolve location by legacy restaurant id (for tenant fallback). */
     public Optional<Location> findLocationByLegacyRestaurantId(Long restaurantId) {
-        return locationRepository.findByLegacyRestaurant_Id(restaurantId);
+        return locationRepository.findByLegacyRestaurantIdWithAssociations(restaurantId);
     }
 
     // ---------- Warehouses ----------

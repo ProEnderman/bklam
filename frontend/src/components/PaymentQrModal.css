@@ -3,6 +3,21 @@
   text-align: center;
 }
 
+.payment-online-btn-wrap {
+  display: inline-block;
+}
+
+.payment-tg-disabled-banner {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #991b1b;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
 /* ===== Progress Steps ===== */
 .qr-progress {
   padding: 20px 0;

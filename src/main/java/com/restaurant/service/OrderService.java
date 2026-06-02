@@ -297,7 +297,21 @@ public class OrderService {
         }
     }
 
+    /** «Один счёт на всю сумму» в UI пишет отметку с id {@code order_{orderId}}, а не {@code order_{id}_pay_0}. */
+    private boolean isFullOrderPaymentMarkedPaid(List<OrderPaymentMark> marks, Long orderId) {
+        String fullBill = "order_" + orderId;
+        String legacyFullCash = "cash_order_" + orderId;
+        return marks.stream().anyMatch(m -> {
+            if (m.getMarkedAt() == null) return false;
+            String pid = m.getPaymentRequestId();
+            return fullBill.equals(pid) || legacyFullCash.equals(pid);
+        });
+    }
+
     private boolean isSplitPaymentSlotMarkedPaid(List<OrderPaymentMark> marks, Long orderId, int slotIndex) {
+        if (isFullOrderPaymentMarkedPaid(marks, orderId)) {
+            return true;
+        }
         String stable = "order_" + orderId + "_pay_" + slotIndex;
         String legacyCash = "cash_order_" + orderId + "_pay_" + slotIndex;
         return marks.stream().anyMatch(m -> {
@@ -305,6 +319,33 @@ public class OrderService {
             String pid = m.getPaymentRequestId();
             return stable.equals(pid) || legacyCash.equals(pid);
         });
+    }
+
+    /** Синхронизирует orders.paid_at со слотами оплаты / единым счётом (для списка «Заказы»). */
+    private void refreshOrderPaidAtAfterPaymentMarks(Order order) {
+        boolean hasSplit = orderShareRepository.existsByOrderId(order.getId());
+        if (!hasSplit) {
+            boolean anyMark = orderPaymentMarkRepository.findByOrderId(order.getId()).stream()
+                .anyMatch(m -> m.getMarkedAt() != null);
+            if (anyMark && order.getPaidAt() == null) {
+                order.setPaidAt(LocalDateTime.now());
+                order.setUnpaidReason(null);
+                orderRepository.save(order);
+            }
+            return;
+        }
+        List<OrderPaymentMark> marks = orderPaymentMarkRepository.findByOrderId(order.getId());
+        int shareCount = (int) orderShareRepository.countByOrder_Id(order.getId());
+        boolean allPaid = computeAllPaymentSlotsPaid(
+            order.getId(), true, marks, order.getPaymentAccountPayerJson(), shareCount);
+        if (allPaid && order.getPaidAt() == null) {
+            order.setPaidAt(LocalDateTime.now());
+            order.setUnpaidReason(null);
+            orderRepository.save(order);
+        } else if (!allPaid && order.getPaidAt() != null) {
+            order.setPaidAt(null);
+            orderRepository.save(order);
+        }
     }
     
     @Transactional(readOnly = true)
@@ -1281,6 +1322,7 @@ public class OrderService {
                 throw new BusinessException("Payment mark conflict");
             }
         }
+        refreshOrderPaidAtAfterPaymentMarks(order);
     }
 
     @Transactional

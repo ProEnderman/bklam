@@ -530,7 +530,17 @@ class ForecastService:
         if not force_refresh:
             cached = load_monthly_rollup(metric, year, month, tenant_id=tenant_id)
             if cached is not None:
-                return cached
+                covered = cached.get("covered_days", 0) if isinstance(cached, dict) else 0
+                predicted = cached.get("predicted_total", 0) if isinstance(cached, dict) else 0
+                if covered == 0 or (predicted == 0 and covered < cached.get("total_days", 31)):
+                    probe_actuals = load_daily_actuals_for_month(metric, year, month, token=token)
+                    probe_fc = load_latest_forecast(metric, tenant_id=tenant_id)
+                    if probe_actuals or probe_fc is not None:
+                        force_refresh = True
+                    else:
+                        return cached
+                else:
+                    return cached
 
         daily = load_latest_forecast(metric, tenant_id=tenant_id)
         if daily is None:
@@ -597,7 +607,7 @@ class ForecastService:
             return {"error": snapshot["error"]}
 
         snap_predicted = snapshot["predicted_total"] if isinstance(snapshot, dict) else snapshot.predicted_total
-        snap_notes = snapshot.get("notes", {}) if isinstance(snapshot, dict) else {}
+        snap_notes = snapshot.get("notes", {}) if isinstance(snapshot, dict) else (snapshot.notes if hasattr(snapshot, "notes") else {})
 
         daily_actuals = load_daily_actuals_for_month(metric, year, month, token=token)
         total_days = cal.monthrange(year, month)[1]
@@ -664,6 +674,13 @@ class ForecastService:
 
         revised_total = actual_so_far + remaining_forecast
 
+        # Align monthly headline with daily forecast when stale snapshot says 0
+        display_snapshot_total = snap_predicted
+        if (display_snapshot_total is None or display_snapshot_total == 0) and sum_forecast_plan > 0:
+            display_snapshot_total = sum(forecast_plan)
+        elif (display_snapshot_total is None or display_snapshot_total == 0) and revised_total > 0:
+            display_snapshot_total = revised_total
+
         variance = actual_so_far - predicted_for_elapsed_days
         variance_pct = (variance / predicted_for_elapsed_days * 100) if predicted_for_elapsed_days != 0 else 0.0
 
@@ -686,7 +703,7 @@ class ForecastService:
             "variance": round(variance, 2),
             "variance_pct": round(variance_pct, 2),
             "pace": pace,
-            "snapshot_total": round(snap_predicted, 2),
+            "snapshot_total": round(display_snapshot_total or 0, 2),
             "revised_total": round(revised_total, 2),
             "remaining_forecast": round(remaining_forecast, 2),
             "snapshot_actual_days": snap_notes.get("actual_days", 0),
@@ -738,9 +755,10 @@ class ForecastService:
 
             pred, lo_t, hi_t = aggregate_month_sum(sliced["yhat"], sliced["lower"], sliced["upper"])
 
+            seg_label = getattr(ts, "name", None) or seg_names.get(seg_id, f"Activity {seg_id}")
             by_activity.append({
                 "segment_id": seg_id,
-                "segment_name": seg_names.get(seg_id, f"Activity {seg_id}"),
+                "segment_name": seg_label,
                 "predicted_total": round(pred, 1),
                 "lower_total": round(lo_t, 1) if lo_t is not None else None,
                 "upper_total": round(hi_t, 1) if hi_t is not None else None,

@@ -20,5 +20,12 @@ public interface GuestSessionRepository extends JpaRepository<GuestSession, Long
 
     Optional<GuestSession> findBySessionTokenAndExpiresAtAfter(String sessionToken, LocalDateTime now);
 
+    /**
+     * Resolves guest session for public QR API when {@code app.current_restaurant_id} is not set
+     * (see {@code lookup_guest_session} in Flyway V97).
+     */
+    @Query(value = "SELECT * FROM lookup_guest_session(CAST(:token AS text))", nativeQuery = true)
+    Optional<GuestSession> findByLookupToken(@Param("token") String token);
+
     void deleteByExpiresAtBefore(LocalDateTime now);
 }

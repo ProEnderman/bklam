@@ -8,11 +8,21 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
 let csrfPrimePromise: Promise<void> | null = null
 export function ensureCsrfPrimed(): Promise<void> {
   if (!csrfPrimePromise) {
-    csrfPrimePromise = fetch(`${API_BASE_URL}/auth/csrf`, { method: 'GET', credentials: 'include' })
-      .catch(() => {})
-      .then(() => {})
+    csrfPrimePromise = fetchCsrfCookie()
   }
   return csrfPrimePromise
+}
+
+/** Перечитать CSRF-cookie перед серией POST/PUT/DELETE (сохранение тарифов и т.п.). */
+export function refreshCsrfToken(): Promise<void> {
+  csrfPrimePromise = fetchCsrfCookie()
+  return csrfPrimePromise
+}
+
+function fetchCsrfCookie(): Promise<void> {
+  return fetch(`${API_BASE_URL}/auth/csrf`, { method: 'GET', credentials: 'include' })
+    .catch(() => {})
+    .then(() => new Promise((r) => setTimeout(r, 0)))
 }
 
 const client = axios.create({

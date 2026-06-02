@@ -31,6 +31,8 @@ type Props = {
   shareGuestSearching: boolean
   setShareGuestSearchResults: Dispatch<SetStateAction<LoyaltyGuest[]>>
   onInitSplitDraft: () => void
+  orderRequiresSplit?: boolean
+  onSplitValidityChange?: (valid: boolean) => void
 }
 
 export default function NewOrderGuestSplitColumn({
@@ -49,6 +51,8 @@ export default function NewOrderGuestSplitColumn({
   shareGuestSearching,
   setShareGuestSearchResults,
   onInitSplitDraft,
+  orderRequiresSplit = false,
+  onSplitValidityChange,
 }: Props) {
   const isSplitColumn = variant === 'splitColumn'
   const Tag = isSplitColumn ? 'section' : 'div'
@@ -364,7 +368,13 @@ export default function NewOrderGuestSplitColumn({
       {currentOrder && currentOrder.status === 'OPEN' && currentOrder.items && currentOrder.items.length > 0 && (
         <div className="order-split-section">
           <p className="order-split-hint">Разделение счёта по гостям (список блюд прокручивается отдельно ниже).</p>
-          <SplitBill orderId={currentOrder.id} orderStatus={currentOrder.status} items={currentOrder.items} />
+          <SplitBill
+            orderId={currentOrder.id}
+            orderStatus={currentOrder.status}
+            items={currentOrder.items}
+            requiresSplit={orderRequiresSplit}
+            onValidityChange={onSplitValidityChange}
+          />
         </div>
       )}
     </>

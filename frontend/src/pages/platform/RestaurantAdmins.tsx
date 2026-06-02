@@ -30,7 +30,7 @@ export default function RestaurantAdmins() {
       const data = await platformService.getUsers(0, 1000, parseInt(id))
       // Фильтруем только ADMIN роли
       const restaurantAdmins = data.content.filter(
-        (u) => u.role === 'ADMIN'
+        (u) => u.role === 'ADMIN' && u.isActive
       )
       setAdmins(restaurantAdmins)
     } catch (error) {

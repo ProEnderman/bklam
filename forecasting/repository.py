@@ -14,7 +14,16 @@ import pandas as pd
 
 from config import SPECS_DIR
 from forecast_context import get_forecast_token
-from java_client import get_orders_data, orders_to_revenue_timeseries, orders_to_bookings_timeseries
+from java_client import (
+    get_orders_data,
+    get_tariff_revenue_data,
+    get_tariff_bookings_data,
+    get_tariff_bookings_by_activity_data,
+    orders_to_revenue_timeseries,
+    orders_to_bookings_timeseries,
+    tariff_revenue_to_timeseries,
+    tariff_bookings_to_timeseries,
+)
 from types_ import TimeSeries, ForecastResult
 
 logger = logging.getLogger(__name__)
@@ -29,25 +38,35 @@ def _empty_ts(name: str, since: date) -> TimeSeries:
 # ──────────────────────────────────────────────
 
 def load_daily_revenue(rid: Optional[int] = None, since: Optional[date] = None, token: Optional[str] = None) -> TimeSeries:
+    """PAID tariff booking revenue per day. Falls back to closed menu orders if no tariff data."""
     since = since or date.today() - timedelta(days=400)
     token = token or get_forecast_token()
     if not token:
         logger.warning("load_daily_revenue: no forecast token in context (TenantContext/JWT not set for this request)")
         return _empty_ts("revenue", since)
     to_date = date.today()
-    rows = get_orders_data(since, to_date, token)
-    return orders_to_revenue_timeseries(rows, since)
+    rows = get_tariff_revenue_data(since, to_date, token)
+    if rows:
+        return tariff_revenue_to_timeseries(rows, since)
+    logger.info("load_daily_revenue: no tariff rows, falling back to closed order revenue")
+    order_rows = get_orders_data(since, to_date, token)
+    return orders_to_revenue_timeseries(order_rows, since)
 
 
 def load_daily_bookings(rid: Optional[int] = None, since: Optional[date] = None, token: Optional[str] = None) -> TimeSeries:
+    """PAID tariff bookings per day (by start_at). Falls back to menu order items if no tariff data."""
     since = since or date.today() - timedelta(days=400)
     token = token or get_forecast_token()
     if not token:
         logger.warning("load_daily_bookings: no forecast token in context")
         return _empty_ts("bookings", since)
     to_date = date.today()
-    rows = get_orders_data(since, to_date, token)
-    return orders_to_bookings_timeseries(rows, since)
+    rows = get_tariff_bookings_data(since, to_date, token)
+    if rows:
+        return tariff_bookings_to_timeseries(rows, since)
+    logger.info("load_daily_bookings: no tariff rows, falling back to order itemsCount")
+    order_rows = get_orders_data(since, to_date, token)
+    return orders_to_bookings_timeseries(order_rows, since)
 
 
 def load_daily_cancel_rate(rid: Optional[int] = None, since: Optional[date] = None, token: Optional[str] = None) -> TimeSeries:
@@ -98,7 +117,33 @@ def load_daily_revenue_by_activity(since: Optional[date] = None) -> dict[str, Ti
 
 
 def load_daily_bookings_by_activity(since: Optional[date] = None) -> dict[str, TimeSeries]:
-    return {}
+    since = since or date.today() - timedelta(days=400)
+    token = get_forecast_token()
+    if not token:
+        return {}
+    rows = get_tariff_bookings_by_activity_data(since, date.today(), token)
+    if not rows:
+        return {}
+    df = pd.DataFrame(rows)
+    df["ds"] = pd.to_datetime(df["day"])
+    count_col = "count" if "count" in df.columns else "cnt"
+    df["y"] = pd.to_numeric(df[count_col], errors="coerce").fillna(0.0)
+    result: dict[str, TimeSeries] = {}
+    for act_id, grp in df.groupby("activityId"):
+        g = grp.set_index("ds").sort_index()
+        g = g[~g.index.duplicated(keep="last")]
+        if g.empty:
+            continue
+        full = pd.date_range(g.index.min(), g.index.max(), freq="D")
+        g = g.reindex(full)
+        g["y"] = g["y"].fillna(0.0)
+        act_name = str(grp["activityName"].iloc[0]) if "activityName" in grp.columns else f"Activity {act_id}"
+        result[str(act_id)] = TimeSeries(
+            dates=pd.DatetimeIndex(g.index),
+            values=g["y"].values.astype(np.float64),
+            name=act_name,
+        )
+    return result
 
 
 def load_special_events(start_date: date, end_date: date) -> pd.DataFrame:
@@ -275,6 +320,31 @@ def load_daily_actuals_for_month(
     first = date(year, month, 1)
     last_day = calendar.monthrange(year, month)[1]
     last = date(year, month, last_day)
+    if metric == "bookings":
+        rows = get_tariff_bookings_data(first, last, token)
+        if rows:
+            df = pd.DataFrame(rows)
+            df["day_str"] = pd.to_datetime(df["day"]).dt.strftime("%Y-%m-%d")
+            count_col = "count" if "count" in df.columns else "cnt"
+            df["_bk"] = pd.to_numeric(df.get(count_col, 0), errors="coerce").fillna(0.0)
+            return df.groupby("day_str")["_bk"].sum().to_dict()
+        rows = get_orders_data(first, last, token)
+        if not rows:
+            return {}
+        df = pd.DataFrame(rows)
+        df["day_str"] = pd.to_datetime(df["day"]).dt.strftime("%Y-%m-%d")
+        items_col = "itemsCount" if "itemsCount" in df.columns else "items_count"
+        df["_bk"] = pd.to_numeric(df.get(items_col, 0), errors="coerce").fillna(0.0)
+        return df.groupby("day_str")["_bk"].sum().to_dict()
+
+    if metric == "revenue":
+        rows = get_tariff_revenue_data(first, last, token)
+        if rows:
+            df = pd.DataFrame(rows)
+            df["day_str"] = pd.to_datetime(df["day"]).dt.strftime("%Y-%m-%d")
+            df["_rev"] = pd.to_numeric(df.get("revenue", 0), errors="coerce").fillna(0.0)
+            return df.groupby("day_str")["_rev"].sum().to_dict()
+
     rows = get_orders_data(first, last, token)
     if not rows:
         return {}
@@ -287,8 +357,6 @@ def load_daily_actuals_for_month(
     by_day = df.groupby("day_str").agg(_rev=("_rev", "sum"), _bk=("_bk", "sum"))
     if metric == "revenue":
         return by_day["_rev"].to_dict()
-    if metric == "bookings":
-        return by_day["_bk"].to_dict()
     if metric == "avg_check":
         by_day["val"] = by_day["_rev"] / by_day["_bk"].replace(0, np.nan)
         return by_day["val"].fillna(0.0).to_dict()

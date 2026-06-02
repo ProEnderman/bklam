@@ -1,8 +1,9 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import { categoryService, restaurantService, optionTemplateService } from '../../api/services'
 import type { OptionTemplate } from '../../api/services'
-import { retryOnRateLimit } from '../../utils/apiRetry'
+import { apiPaceMs, retryOnRateLimit, retryOnRateLimitBulk } from '../../utils/apiRetry'
 import { fillTransparentWithWhite } from '../../utils/imageBackground'
+import { getFirstImageFromClipboard } from '../../utils/clipboardImage'
 import { useOutletContext } from 'react-router-dom'
 import type { DishCategory, Dish, Ingredient, RecipeItem, User } from '../../api/types'
 import DataTable from '../../components/DataTable'
@@ -11,6 +12,19 @@ import FormInput from '../../components/FormInput'
 import SearchableSingleSelect from '../../components/SearchableSingleSelect'
 import SearchBar from '../../components/SearchBar'
 import './Menu.css'
+import ExcelHoverHint from '../../components/ExcelHoverHint'
+import {
+  MENU_INGREDIENTS_EXPORT_HINT,
+  buildMenuIngredientRows,
+  downloadMenuIngredientsXlsx,
+  sanitizeMenuExportBasename,
+  type MenuIngredientExportEntry,
+} from '../../utils/menuIngredientsExport'
+import {
+  MENU_INGREDIENTS_IMPORT_HINT,
+  executeMenuIngredientsImport,
+  parseMenuIngredientsImportBuffer,
+} from '../../utils/menuIngredientsImport'
 
 const DISHES_PAGE_SIZE = 10
 
@@ -25,6 +39,9 @@ export default function Menu() {
   const [loadingDishes, setLoadingDishes] = useState(false)
   const [search, setSearch] = useState('')
   const [dishListPage, setDishListPage] = useState(1)
+  const [exportingMenuExcel, setExportingMenuExcel] = useState(false)
+  const [menuImporting, setMenuImporting] = useState(false)
+  const menuImportFileRef = useRef<HTMLInputElement>(null)
   
   // Category modals
   const [showCreateCategoryModal, setShowCreateCategoryModal] = useState(false)
@@ -41,6 +58,8 @@ export default function Menu() {
   const [showDishImageModal, setShowDishImageModal] = useState(false)
   const [dishForImageModal, setDishForImageModal] = useState<Dish | null>(null)
   const dishFileInputRef = useRef<HTMLInputElement>(null)
+  const [pendingCategoryImage, setPendingCategoryImage] = useState<File | null>(null)
+  const [pendingDishImage, setPendingDishImage] = useState<File | null>(null)
   const [dishFormData, setDishFormData] = useState({
     name: '',
     price: '',
@@ -140,6 +159,27 @@ export default function Menu() {
   const [inlineModifiers, setInlineModifiers] = useState<InlineModifier[]>([])
   const [showInlineForm, setShowInlineForm] = useState(false)
   const [editingInlineIndex, setEditingInlineIndex] = useState<number | null>(null)
+
+  const categoryStagingPreviewUrl = useMemo(
+    () => (pendingCategoryImage ? URL.createObjectURL(pendingCategoryImage) : null),
+    [pendingCategoryImage]
+  )
+  const dishStagingPreviewUrl = useMemo(
+    () => (pendingDishImage ? URL.createObjectURL(pendingDishImage) : null),
+    [pendingDishImage]
+  )
+
+  useEffect(() => {
+    return () => {
+      if (categoryStagingPreviewUrl) URL.revokeObjectURL(categoryStagingPreviewUrl)
+    }
+  }, [categoryStagingPreviewUrl])
+
+  useEffect(() => {
+    return () => {
+      if (dishStagingPreviewUrl) URL.revokeObjectURL(dishStagingPreviewUrl)
+    }
+  }, [dishStagingPreviewUrl])
 
   const resetCreateDishModalState = useCallback(() => {
     setCreateDishBackdropConfirm(false)
@@ -329,22 +369,27 @@ export default function Menu() {
   }
 
   const handleImageClick = (e: React.MouseEvent, category: DishCategory) => {
-    e.stopPropagation() // Предотвращаем всплытие события
-    // Сохраняем категорию для модального окна отдельно, чтобы не переключаться на просмотр блюд
+    e.stopPropagation()
+    setPendingCategoryImage(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
     setCategoryForImageModal(category)
     setShowImageModal(true)
   }
 
   const handleImageUpload = async () => {
-    if (!categoryForImageModal || !fileInputRef.current?.files?.[0]) {
+    const file = pendingCategoryImage ?? fileInputRef.current?.files?.[0] ?? undefined
+    if (!categoryForImageModal || !file) {
       setShowImageModal(false)
       setCategoryForImageModal(null)
+      setPendingCategoryImage(null)
+      if (fileInputRef.current) fileInputRef.current.value = ''
       return
     }
-    
-    const file = fileInputRef.current.files[0]
+
     if (!file.type.startsWith('image/')) {
-      alert('Пожалуйста, выберите изображение')
+      alert('Пожалуйста, выберите или вставьте изображение')
       return
     }
 
@@ -358,6 +403,7 @@ export default function Menu() {
       await categoryService.uploadCategoryImage(categoryForImageModal.id, fileToUpload)
       setShowImageModal(false)
       setCategoryForImageModal(null)
+      setPendingCategoryImage(null)
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
       }
@@ -1334,7 +1380,7 @@ export default function Menu() {
           <button
             className="btn-image-upload"
             onClick={(e) => handleImageClick(e, item)}
-            title="Загрузить изображение"
+            title="Загрузить изображение (Ctrl+V или Cmd+V — вставить из буфера)"
           >
             📷
           </button>
@@ -1371,20 +1417,26 @@ export default function Menu() {
 
   const handleDishImageClick = (e: React.MouseEvent, dish: Dish) => {
     e.stopPropagation()
+    setPendingDishImage(null)
+    if (dishFileInputRef.current) {
+      dishFileInputRef.current.value = ''
+    }
     setDishForImageModal(dish)
     setShowDishImageModal(true)
   }
 
   const handleDishImageUpload = async () => {
-    if (!dishForImageModal || !dishFileInputRef.current?.files?.[0]) {
+    const file = pendingDishImage ?? dishFileInputRef.current?.files?.[0] ?? undefined
+    if (!dishForImageModal || !file) {
       setShowDishImageModal(false)
       setDishForImageModal(null)
+      setPendingDishImage(null)
+      if (dishFileInputRef.current) dishFileInputRef.current.value = ''
       return
     }
-    
-    const file = dishFileInputRef.current.files[0]
+
     if (!file.type.startsWith('image/')) {
-      alert('Пожалуйста, выберите изображение')
+      alert('Пожалуйста, выберите или вставьте изображение')
       return
     }
 
@@ -1398,6 +1450,7 @@ export default function Menu() {
       await restaurantService.uploadDishImage(dishForImageModal.id, fileToUpload)
       setShowDishImageModal(false)
       setDishForImageModal(null)
+      setPendingDishImage(null)
       if (dishFileInputRef.current) {
         dishFileInputRef.current.value = ''
       }
@@ -1406,6 +1459,34 @@ export default function Menu() {
       alert(error.response?.data?.message || 'Failed to upload image')
     }
   }
+
+  useEffect(() => {
+    if (!showImageModal || !categoryForImageModal) return
+    const onPaste = (e: ClipboardEvent) => {
+      const f = getFirstImageFromClipboard(e.clipboardData)
+      if (!f) return
+      e.preventDefault()
+      e.stopPropagation()
+      setPendingCategoryImage(f)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+    document.addEventListener('paste', onPaste, true)
+    return () => document.removeEventListener('paste', onPaste, true)
+  }, [showImageModal, categoryForImageModal])
+
+  useEffect(() => {
+    if (!showDishImageModal || !dishForImageModal) return
+    const onPaste = (e: ClipboardEvent) => {
+      const f = getFirstImageFromClipboard(e.clipboardData)
+      if (!f) return
+      e.preventDefault()
+      e.stopPropagation()
+      setPendingDishImage(f)
+      if (dishFileInputRef.current) dishFileInputRef.current.value = ''
+    }
+    document.addEventListener('paste', onPaste, true)
+    return () => document.removeEventListener('paste', onPaste, true)
+  }, [showDishImageModal, dishForImageModal])
 
   const dishColumns = [
     {
@@ -1443,7 +1524,7 @@ export default function Menu() {
           <button
             className="btn-image-upload"
             onClick={(e) => handleDishImageClick(e, item)}
-            title="Загрузить изображение"
+            title="Загрузить изображение (Ctrl+V или Cmd+V — вставить из буфера)"
           >
             📷
           </button>
@@ -1484,6 +1565,124 @@ export default function Menu() {
     },
   ]
 
+  const handleExportMenuIngredientsExcel = async () => {
+    setExportingMenuExcel(true)
+    try {
+      const date = new Date().toISOString().slice(0, 10)
+      const entries: MenuIngredientExportEntry[] = []
+
+      if (selectedCategory) {
+        const list = (await restaurantService.getDishesByCategory(selectedCategory.id)).filter((d) => d.isActive)
+        const recipes: RecipeItem[][] = []
+        for (const d of list) {
+          recipes.push(await retryOnRateLimitBulk(() => restaurantService.getRecipe(d.id)))
+          await apiPaceMs(65)
+        }
+        list.forEach((d, i) => {
+          entries.push({ dish: d, categoryName: selectedCategory.name, recipe: recipes[i] ?? [] })
+        })
+      } else {
+        const cats = categories.length > 0 ? categories : await retryOnRateLimit(() => categoryService.getCategories(), 1, 200)
+        for (const cat of cats) {
+          const list = (await restaurantService.getDishesByCategory(cat.id)).filter((d) => d.isActive)
+          const recipes: RecipeItem[][] = []
+          for (const d of list) {
+            recipes.push(await retryOnRateLimitBulk(() => restaurantService.getRecipe(d.id)))
+            await apiPaceMs(65)
+          }
+          list.forEach((d, i) => {
+            entries.push({ dish: d, categoryName: cat.name, recipe: recipes[i] ?? [] })
+          })
+          await apiPaceMs(80)
+        }
+      }
+
+      if (entries.length === 0) {
+        alert('Нет активных блюд для экспорта.')
+        return
+      }
+
+      const rows = buildMenuIngredientRows(entries)
+      const base = selectedCategory
+        ? sanitizeMenuExportBasename(selectedCategory.name)
+        : 'menu_all'
+      downloadMenuIngredientsXlsx(rows, `${base}_${date}.xlsx`)
+    } catch (e: unknown) {
+      console.error(e)
+      const msg =
+        e && typeof e === 'object' && 'response' in e
+          ? (e as { response?: { data?: { message?: string } } }).response?.data?.message
+          : e instanceof Error
+            ? e.message
+            : undefined
+      alert(msg || 'Не удалось сформировать Excel')
+    } finally {
+      setExportingMenuExcel(false)
+    }
+  }
+
+  const runMenuExcelImportFromFile = async (file: File) => {
+    setMenuImporting(true)
+    try {
+      const buf = await file.arrayBuffer()
+      const { groups, errors, warnings: parseWarnings } = parseMenuIngredientsImportBuffer(buf)
+      if (errors.length) {
+        alert(errors.join('\n'))
+        return
+      }
+      const stats = await executeMenuIngredientsImport(groups, {
+        getCategories: () => categoryService.getCategories(),
+        createCategory: (name) => categoryService.createCategory(name),
+        getDishesByCategory: (id) => restaurantService.getDishesByCategory(id),
+        createDish: (d) => restaurantService.createDish(d),
+        updateDish: (id, d) => restaurantService.updateDish(id, d),
+        getIngredients: () => restaurantService.getIngredients(),
+        createIngredient: (d) => restaurantService.createIngredient(d),
+        updateRecipe: (id, r) => restaurantService.updateRecipe(id, r),
+      })
+      const allWarn = [...parseWarnings, ...stats.extraWarnings]
+      const warnText =
+        allWarn.length > 0
+          ? `\n\nПредупреждения (${allWarn.length}):\n${allWarn.slice(0, 20).join('\n')}${allWarn.length > 20 ? '\n…' : ''}`
+          : ''
+      alert(
+        `Импорт завершён.\n` +
+          `Категорий создано: ${stats.categoriesCreated}\n` +
+          `Блюд создано: ${stats.dishesCreated}\n` +
+          `Блюд обновлено (цена): ${stats.dishesPriceUpdated}\n` +
+          `Ингредиентов создано: ${stats.ingredientsCreated}` +
+          warnText
+      )
+      await loadCategories()
+      if (selectedCategory) {
+        await loadDishesForCategory()
+      }
+    } catch (e: unknown) {
+      console.error(e)
+      const msg =
+        e && typeof e === 'object' && 'response' in e
+          ? (e as { response?: { data?: { message?: string } } }).response?.data?.message
+          : e instanceof Error
+            ? e.message
+            : undefined
+      alert(msg || 'Не удалось выполнить импорт')
+    } finally {
+      setMenuImporting(false)
+    }
+  }
+
+  const handleMenuImportFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    const low = file.name.toLowerCase()
+    if (!low.endsWith('.xlsx') && !low.endsWith('.xls')) {
+      alert('Выберите файл Excel (.xlsx или .xls)')
+      return
+    }
+    await runMenuExcelImportFromFile(file)
+  }
+
   if (selectedCategory) {
     // Show dishes for selected category
     return (
@@ -1493,16 +1692,49 @@ export default function Menu() {
             ← Назад к категориям
           </button>
           <h1>Блюда категории: {selectedCategory.name}</h1>
-          {isAdmin && (
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button className="btn-primary" onClick={() => { setShowCreateDishModal(true); loadTemplates(); setDishLinkedTemplateIds([]); setInlineModifiers([]); setShowInlineForm(false); setEditingInlineIndex(null) }}>
-                Создать блюдо
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+            {isAdmin && (
+              <>
+                <button className="btn-primary" onClick={() => { setShowCreateDishModal(true); loadTemplates(); setDishLinkedTemplateIds([]); setInlineModifiers([]); setShowInlineForm(false); setEditingInlineIndex(null) }}>
+                  Создать блюдо
+                </button>
+                <button className="btn-secondary" onClick={() => { loadTemplates(); setShowTemplatesModal(true) }}>
+                  Шаблоны модификаторов
+                </button>
+              </>
+            )}
+            <ExcelHoverHint hint={MENU_INGREDIENTS_EXPORT_HINT}>
+              <button
+                type="button"
+                className="btn-secondary"
+                disabled={exportingMenuExcel || menuImporting}
+                onClick={handleExportMenuIngredientsExcel}
+              >
+                {exportingMenuExcel ? 'Экспорт...' : 'Экспорт Excel (меню и ингредиенты)'}
               </button>
-              <button className="btn-secondary" onClick={() => { loadTemplates(); setShowTemplatesModal(true) }}>
-                Шаблоны модификаторов
-              </button>
-            </div>
-          )}
+            </ExcelHoverHint>
+            {isAdmin && (
+              <>
+                <input
+                  ref={menuImportFileRef}
+                  type="file"
+                  accept=".xlsx,.xls"
+                  style={{ display: 'none' }}
+                  onChange={handleMenuImportFileChange}
+                />
+                <ExcelHoverHint hint={MENU_INGREDIENTS_IMPORT_HINT}>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    disabled={menuImporting || exportingMenuExcel}
+                    onClick={() => menuImportFileRef.current?.click()}
+                  >
+                    {menuImporting ? 'Импорт...' : 'Импорт Excel'}
+                  </button>
+                </ExcelHoverHint>
+              </>
+            )}
+          </div>
         </div>
 
         <SearchBar value={search} onChange={setSearch} placeholder="Поиск блюд..." />
@@ -1862,6 +2094,7 @@ export default function Menu() {
             onClose={() => {
               setShowDishImageModal(false)
               setDishForImageModal(null)
+              setPendingDishImage(null)
               if (dishFileInputRef.current) {
                 dishFileInputRef.current.value = ''
               }
@@ -1874,13 +2107,23 @@ export default function Menu() {
                 type="file"
                 accept="image/png,image/jpeg,image/jpg"
                 style={{ marginBottom: '15px' }}
+                onChange={() => setPendingDishImage(null)}
               />
               <p style={{ fontSize: '12px', color: '#666', marginBottom: '15px' }}>
-                Выберите PNG/JPEG изображение для блюда
+                Выберите PNG/JPEG или нажмите <strong>Ctrl+V</strong> (или <strong>Cmd+V</strong>), чтобы вставить
+                скопированное изображение.
               </p>
+              {pendingDishImage && dishStagingPreviewUrl && (
+                <div className="current-image-preview" style={{ marginBottom: '15px' }}>
+                  <p>Выбрано для загрузки (вставлено или из файла):</p>
+                  <div className="preview-image-wrap">
+                    <img src={dishStagingPreviewUrl} alt="Предпросмотр" className="preview-image" />
+                  </div>
+                </div>
+              )}
               {dishForImageModal?.imageUrl && (
                 <div className="current-image-preview">
-                  <p>Текущее изображение:</p>
+                  <p>{pendingDishImage ? 'Текущее изображение на сервере:' : 'Текущее изображение:'}</p>
                   <div className="preview-image-wrap">
                     <img
                       src={dishForImageModal.imageUrl}
@@ -1897,6 +2140,7 @@ export default function Menu() {
                 onClick={() => {
                   setShowDishImageModal(false)
                   setDishForImageModal(null)
+                  setPendingDishImage(null)
                   if (dishFileInputRef.current) {
                     dishFileInputRef.current.value = ''
                   }
@@ -2639,11 +2883,44 @@ export default function Menu() {
     <div style={{ padding: '20px' }}>
       <div className="page-header">
         <h1>Меню (Категории блюд)</h1>
-        {isAdmin && (
-          <button className="btn-primary" onClick={() => setShowCreateCategoryModal(true)}>
-            Создать категорию
-          </button>
-        )}
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <ExcelHoverHint hint={MENU_INGREDIENTS_EXPORT_HINT}>
+            <button
+              type="button"
+              className="btn-secondary"
+              disabled={exportingMenuExcel || menuImporting}
+              onClick={handleExportMenuIngredientsExcel}
+            >
+              {exportingMenuExcel ? 'Экспорт...' : 'Экспорт Excel (меню и ингредиенты)'}
+            </button>
+          </ExcelHoverHint>
+          {isAdmin && (
+            <>
+              <input
+                ref={menuImportFileRef}
+                type="file"
+                accept=".xlsx,.xls"
+                style={{ display: 'none' }}
+                onChange={handleMenuImportFileChange}
+              />
+              <ExcelHoverHint hint={MENU_INGREDIENTS_IMPORT_HINT}>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  disabled={menuImporting || exportingMenuExcel}
+                  onClick={() => menuImportFileRef.current?.click()}
+                >
+                  {menuImporting ? 'Импорт...' : 'Импорт Excel'}
+                </button>
+              </ExcelHoverHint>
+            </>
+          )}
+          {isAdmin && (
+            <button className="btn-primary" onClick={() => setShowCreateCategoryModal(true)}>
+              Создать категорию
+            </button>
+          )}
+        </div>
       </div>
 
       <DataTable
@@ -2717,6 +2994,7 @@ export default function Menu() {
             onClose={() => {
               setShowImageModal(false)
               setCategoryForImageModal(null)
+              setPendingCategoryImage(null)
               if (fileInputRef.current) {
                 fileInputRef.current.value = ''
               }
@@ -2729,13 +3007,23 @@ export default function Menu() {
                 type="file"
                 accept="image/png,image/jpeg,image/jpg"
                 style={{ marginBottom: '15px' }}
+                onChange={() => setPendingCategoryImage(null)}
               />
               <p style={{ fontSize: '12px', color: '#666', marginBottom: '15px' }}>
-                Выберите PNG изображение для категории
+                Выберите PNG/JPEG или нажмите <strong>Ctrl+V</strong> (или <strong>Cmd+V</strong>), чтобы вставить
+                скопированное изображение.
               </p>
+              {pendingCategoryImage && categoryStagingPreviewUrl && (
+                <div className="current-image-preview" style={{ marginBottom: '15px' }}>
+                  <p>Выбрано для загрузки (вставлено или из файла):</p>
+                  <div className="preview-image-wrap">
+                    <img src={categoryStagingPreviewUrl} alt="Предпросмотр" className="preview-image" />
+                  </div>
+                </div>
+              )}
               {categoryForImageModal?.imageUrl && (
                 <div className="current-image-preview">
-                  <p>Текущее изображение:</p>
+                  <p>{pendingCategoryImage ? 'Текущее изображение на сервере:' : 'Текущее изображение:'}</p>
                   <div className="preview-image-wrap">
                     <img
                       src={categoryForImageModal.imageUrl}
@@ -2752,6 +3040,7 @@ export default function Menu() {
                 onClick={() => {
                   setShowImageModal(false)
                   setCategoryForImageModal(null)
+                  setPendingCategoryImage(null)
                   if (fileInputRef.current) {
                     fileInputRef.current.value = ''
                   }

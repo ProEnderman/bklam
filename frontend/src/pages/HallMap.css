@@ -31,6 +31,12 @@ html, body {
   align-items: flex-start;
   gap: 16px;
   margin-bottom: 16px;
+  position: relative;
+  z-index: 1100;
+}
+
+.hall-topbar .btn-primary:disabled {
+  cursor: default;
 }
 
 .hall-topbar-left {

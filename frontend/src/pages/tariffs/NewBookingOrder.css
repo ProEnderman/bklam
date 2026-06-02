@@ -308,7 +308,7 @@
   margin-bottom: 20px;
 }
 
-.card-header {
+.activity-lines-card .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -317,13 +317,13 @@
   flex-wrap: wrap;
 }
 
-.card-header h2 {
+.activity-lines-card .card-header h2 {
   margin: 0;
   font-size: 16px;
   color: #374151;
 }
 
-.btn-add {
+.activity-lines-card .btn-add-activity-line {
   background: #eef2ff;
   color: #667eea;
   border: 1px dashed #a5b4fc;
@@ -337,8 +337,10 @@
   display: inline-flex;
   align-items: center;
   flex-shrink: 0;
+  width: auto;
+  height: auto;
 }
-.btn-add:hover { background: #e0e7ff; }
+.activity-lines-card .btn-add-activity-line:hover { background: #e0e7ff; }
 
 .activity-line {
   border: 1px solid #e5e7eb;

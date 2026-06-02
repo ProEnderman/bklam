@@ -221,7 +221,8 @@
   color: #9ca3af;
 }
 
-.loading-spinner {
+.loading-state .loading-spinner,
+.analytics-loading .loading-spinner {
   width: 32px;
   height: 32px;
   border: 3px solid #e5e7eb;
@@ -561,10 +562,6 @@
   padding: 60px 20px;
   color: #6b7280;
   font-size: 14px;
-}
-
-.analytics-loading .loading-spinner {
-  margin-bottom: 12px;
 }
 
 /* Table (products tab) */

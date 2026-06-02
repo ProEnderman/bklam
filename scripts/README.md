@@ -31,3 +31,21 @@ After `docker compose up` (with `backend` and `forecast`), run:
 ```
 
 See **[verify-forecast-isolation.md](./verify-forecast-isolation.md)** for the 3 manual commands and expected results (forecast cannot reach postgres; no auth → 401; valid internal JWT → 200).
+
+## Demo seed (tariffs / bookings / full analytics)
+
+Requires `DEMO_BOOKING_SEED_ENABLED=true` (and for menu orders also `DEMO_ORDER_SEED_ENABLED=true`) on the backend.
+
+| Script | API | Purpose |
+|--------|-----|---------|
+| `./scripts/seed-demo-tariff-bookings.sh` | `POST /api/demo/seed-tariff-bookings` | ~5000 `bookings` + 3× `DEMO_SEED_` activities (tariff analytics) |
+| `./scripts/seed-demo-orders.sh` | `POST /api/demo/seed-orders` | ~5000 menu `orders` (ML / hall revenue) |
+| `./scripts/seed-full-analytics-demo.sh` | `POST /api/demo/seed-full-analytics-demo` | Bookings + optional orders in one request |
+| `./scripts/seed-demo-cohort-retention.sh` | `POST /api/demo/seed-cohort-retention` | ~2000 PAID bookings with **same phone** across weeks (cohort retention) |
+
+Examples:
+
+```bash
+DEMO_BOOKING_SEED_ENABLED=true COUNT=5000 DAYS=180 EMAIL=admin@example.com PASS=secret ./scripts/seed-demo-tariff-bookings.sh
+DEMO_BOOKING_SEED_ENABLED=true DEMO_ORDER_SEED_ENABLED=true ./scripts/seed-full-analytics-demo.sh
+```

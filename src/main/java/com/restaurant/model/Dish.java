@@ -1,5 +1,6 @@
 package com.restaurant.model;
 
+import com.restaurant.util.UnicodeSubstringSearch;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
@@ -24,7 +25,11 @@ public class Dish {
     @NotBlank(message = "Name is required")
     @Column(nullable = false)
     private String name;
-    
+
+    /** NFC + lowercase (ROOT) — substring search independent of PostgreSQL locale */
+    @Column(name = "name_search_key", columnDefinition = "text")
+    private String nameSearchKey;
+
     @DecimalMin(value = "0", message = "Price must be >= 0")
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal price;
@@ -53,11 +58,19 @@ public class Dish {
     protected void onCreate() {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
+        refreshNameSearchKey();
     }
 
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
+        refreshNameSearchKey();
+    }
+
+    private void refreshNameSearchKey() {
+        if (name != null) {
+            nameSearchKey = UnicodeSubstringSearch.normalizeSearchKey(name);
+        }
     }
     
     public Long getRestaurantId() {

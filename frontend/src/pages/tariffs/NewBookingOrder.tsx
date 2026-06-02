@@ -41,6 +41,31 @@ interface ExistingClient {
 
 function uid() { return Math.random().toString(36).substring(2, 9) }
 
+const RESTAURANT_TIMEZONE = 'Europe/Moscow'
+
+/** Календарная дата «сегодня» ресторана (Europe/Moscow), YYYY-MM-DD */
+function getMoscowCalendarDate(now = new Date()): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: RESTAURANT_TIMEZONE }).format(now)
+}
+
+/** Границы суток для API: naive LocalDateTime без UTC (как в БД). */
+function getMoscowTodayBounds(): { from: string; to: string } {
+  const day = getMoscowCalendarDate()
+  return { from: `${day}T00:00:00`, to: `${day}T23:59:59` }
+}
+
+function normalizeNaiveDateTime(value: string): string {
+  return value.slice(0, 19).replace(' ', 'T')
+}
+
+/** Бронь пересекается с «сегодня» по Europe/Moscow (сравнение наивных дат). */
+function bookingOverlapsMoscowToday(b: Booking): boolean {
+  const { from, to } = getMoscowTodayBounds()
+  const start = normalizeNaiveDateTime(b.startAt)
+  const end = normalizeNaiveDateTime(b.endAt)
+  return start <= to && end >= from
+}
+
 function toLocalDatetimeInput(date: Date): string {
   const y = date.getFullYear()
   const m = String(date.getMonth() + 1).padStart(2, '0')
@@ -94,6 +119,23 @@ function emptyLine(): ActivityLine {
     pricingResult: null,
     calculating: false,
   }
+}
+
+function bookingMatchesClient(b: Booking, client: Pick<ExistingClient, 'name' | 'phone'>): boolean {
+  const sameName = (b.customerName || '').trim().toLowerCase() === (client.name || '').trim().toLowerCase()
+  const samePhone = Boolean(client.phone)
+    && (b.customerPhone || '').trim().toLowerCase() === client.phone.trim().toLowerCase()
+  return sameName || samePhone
+}
+
+function isUnlinkedActiveBooking(b: Booking): boolean {
+  return b.status !== 'CANCELLED' && (b.bookingOrderId ?? null) == null
+}
+
+function isSelectableTodayBooking(b: Booking): boolean {
+  return isUnlinkedActiveBooking(b)
+    && b.status !== 'PAID'
+    && bookingOverlapsMoscowToday(b)
 }
 
 /* ========== component ========== */
@@ -161,7 +203,9 @@ export default function NewBookingOrder() {
           const key = `${(b.customerName || '').toLowerCase()}_${(b.customerPhone || '').toLowerCase()}`
           if (!key || key === '_') continue
           if (!map.has(key)) map.set(key, { name: b.customerName || '', phone: b.customerPhone || '', bookings: [] })
-          if (b.status === 'CONFIRMED' || b.status === 'DRAFT' || b.status === 'PAID') map.get(key)!.bookings.push(b)
+          if (b.status === 'CONFIRMED' || b.status === 'DRAFT' || b.status === 'PAID') {
+            if (isUnlinkedActiveBooking(b)) map.get(key)!.bookings.push(b)
+          }
         }
         const list: ExistingClient[] = []
         for (const [, v] of map) {
@@ -199,8 +243,8 @@ export default function NewBookingOrder() {
         if (!map.has(key)) {
           map.set(key, { name: b.customerName || '', phone: b.customerPhone || '', bookings: [] })
         }
-        // В список для клиента добавляем все неотмененные (нужно для автоподтягивания дня)
-        if (b.status !== 'CANCELLED') {
+        // Только непривязанные к заказу брони (доступны для включения в новый заказ)
+        if (b.status !== 'CANCELLED' && isUnlinkedActiveBooking(b)) {
           map.get(key)!.bookings.push(b)
         }
       }
@@ -245,44 +289,45 @@ export default function NewBookingOrder() {
     void loadClientBookingsForToday(client)
   }
 
+  /** Свободные брони клиента за сегодня (Europe/Moscow), ещё не в заказе. */
   const loadClientBookingsForToday = async (client: ExistingClient) => {
-    const now = new Date()
-    const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
-    const dayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
+    const { from, to } = getMoscowTodayBounds()
+    const searchTerm = (client.phone || client.name || '').trim()
     try {
       const res = await bookingService.getBookings({
-        status: ['DRAFT', 'CONFIRMED', 'PAID', 'COMPLETED'],
-        from: dayStart.toISOString(),
-        to: dayEnd.toISOString(),
-        customerSearch: `${client.name} ${client.phone}`.trim(),
+        status: ['DRAFT', 'CONFIRMED'],
+        from,
+        to,
+        customerSearch: searchTerm,
+        linkedToOrder: false,
         size: 500,
         sort: 'startAt,asc',
         page: 0,
       })
       const content = Array.isArray(res) ? res : (res && 'content' in res ? (res as { content: Booking[] }).content : [])
-      const filtered = content.filter((b) => {
-        if (b.status === 'CANCELLED') return false
-        const sameName = (b.customerName || '').trim().toLowerCase() === (client.name || '').trim().toLowerCase()
-        const samePhone = (b.customerPhone || '').trim().toLowerCase() === (client.phone || '').trim().toLowerCase()
-        if (!sameName && !samePhone) return false
-        const start = new Date(b.startAt).getTime()
-        const end = new Date(b.endAt).getTime()
-        return start <= dayEnd.getTime() && end >= dayStart.getTime()
-      })
-      const existingLinesNew = filtered
+      const byId = new Map<string, Booking>()
+      for (const b of [...client.bookings, ...content]) {
+        const key = b.id != null ? String(b.id) : `${b.activityId}_${b.startAt}_${b.endAt}`
+        byId.set(key, b)
+      }
+      const existingLinesNew = [...byId.values()]
+        .filter((b) =>
+          isSelectableTodayBooking(b)
+          && bookingMatchesClient(b, client)
+        )
         .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime())
         .map(bookingToLine)
       const filledNewLines = linesRef.current.filter(l => !l.isExisting && l.activityId)
       const newLns = filledNewLines.length > 0 ? filledNewLines : [emptyLine()]
-      setLines([...existingLinesNew, ...newLns])
+      setLines(existingLinesNew.length > 0 ? [...existingLinesNew, ...newLns] : newLns)
     } catch (err) {
       console.error('Failed to auto-load client bookings for today:', err)
       const existingLinesNew = client.bookings
-        .filter((b) => b.status !== 'CANCELLED')
+        .filter((b) => isUnlinkedActiveBooking(b) && bookingOverlapsMoscowToday(b))
         .map(bookingToLine)
       const filledNewLines = linesRef.current.filter(l => !l.isExisting && l.activityId)
       const newLns = filledNewLines.length > 0 ? filledNewLines : [emptyLine()]
-      setLines([...existingLinesNew, ...newLns])
+      setLines(existingLinesNew.length > 0 ? [...existingLinesNew, ...newLns] : newLns)
     }
   }
 
@@ -982,16 +1027,11 @@ export default function NewBookingOrder() {
                     {c.phone && <span className="picker-phone">{c.phone}</span>}
                     <span className="picker-badge">
                       {(() => {
-                        const activeBookings = c.bookings.filter(b => b.status !== 'CANCELLED')
+                        const activeBookings = c.bookings.filter(isUnlinkedActiveBooking)
                         if (activeBookings.length === 0) return '📥 импорт'
                         const gapFillerId = getGapFillerActivity()?.id
-                        const now = new Date()
-                        const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
-                        const dayEnd = dayStart + 24 * 60 * 60 * 1000
                         const todayActive = activeBookings.filter(b =>
-                          b.status !== 'PAID' &&
-                          new Date(b.startAt).getTime() >= dayStart &&
-                          new Date(b.startAt).getTime() < dayEnd &&
+                          isSelectableTodayBooking(b) &&
                           (gapFillerId == null || b.activityId !== gapFillerId)
                         ).length
                         return todayActive > 0
@@ -1043,7 +1083,7 @@ export default function NewBookingOrder() {
       <div className="activity-lines-card">
         <div className="card-header">
           <h2>Активности</h2>
-          <button className="btn-add" onClick={handleAddLine}>+ Добавить активность</button>
+          <button className="btn-add-activity-line" onClick={handleAddLine}>+ Добавить активность</button>
         </div>
 
         {/* Existing booking lines (EDITABLE) — только основные брони */}

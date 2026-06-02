@@ -15,26 +15,28 @@ public interface DishRepository extends JpaRepository<Dish, Long> {
     
     @Query(value = "SELECT * FROM dishes WHERE " +
            "(:restaurantId IS NULL OR restaurant_id = :restaurantId) AND " +
-           "(:name IS NULL OR :name = '' OR CAST(name AS TEXT) LIKE '%' || CAST(:name AS TEXT) || '%') AND " +
+           "(:searchLikePattern IS NULL OR " +
+           "CAST(name_search_key AS TEXT) LIKE CAST(:searchLikePattern AS TEXT) ESCAPE '!') AND " +
            "(:isActive IS NULL OR is_active = :isActive)",
            nativeQuery = true,
            countQuery = "SELECT COUNT(*) FROM dishes WHERE " +
            "(:restaurantId IS NULL OR restaurant_id = :restaurantId) AND " +
-           "(:name IS NULL OR :name = '' OR CAST(name AS TEXT) LIKE '%' || CAST(:name AS TEXT) || '%') AND " +
+           "(:searchLikePattern IS NULL OR " +
+           "CAST(name_search_key AS TEXT) LIKE CAST(:searchLikePattern AS TEXT) ESCAPE '!') AND " +
            "(:isActive IS NULL OR is_active = :isActive)")
     Page<Dish> searchDishes(
         @Param("restaurantId") Long restaurantId,
-        @Param("name") String name,
+        @Param("searchLikePattern") String searchLikePattern,
         @Param("isActive") Boolean isActive,
         Pageable pageable
     );
     
     @Query(value = "SELECT CASE WHEN COUNT(*) > 0 THEN TRUE ELSE FALSE END FROM dishes WHERE " +
            "(:restaurantId IS NULL OR restaurant_id = :restaurantId) AND " +
-           "CAST(name AS TEXT) = CAST(:name AS TEXT) AND " +
+           "name_search_key = CAST(:normalizedKey AS TEXT) AND " +
            "is_active = TRUE",
            nativeQuery = true)
-    boolean existsByNameIgnoreCase(@Param("restaurantId") Long restaurantId, @Param("name") String name);
+    boolean existsByNameIgnoreCase(@Param("restaurantId") Long restaurantId, @Param("normalizedKey") String normalizedKey);
     
     @Query("SELECT COUNT(d) FROM Dish d WHERE d.category.id = :categoryId")
     long countByCategoryId(@Param("categoryId") Long categoryId);

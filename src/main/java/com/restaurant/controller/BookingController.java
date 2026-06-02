@@ -44,7 +44,8 @@ public class BookingController {
         @RequestParam(required = false, defaultValue = "0") int page,
         @RequestParam(required = false, defaultValue = "100") int size,
         @RequestParam(required = false, defaultValue = "startAt,asc") String sort,
-        @RequestParam(required = false) String customerSearch
+        @RequestParam(required = false) String customerSearch,
+        @RequestParam(required = false) Boolean linkedToOrder
     ) {
         int safePage = Math.max(0, page);
         int safeSize = Math.min(500, Math.max(1, size));
@@ -61,8 +62,8 @@ public class BookingController {
         Pageable pageable = PageRequest.of(safePage, safeSize, sortOrder);
         var bookingPage = (status != null && !status.isEmpty())
             ? (customerSearch != null && !customerSearch.isBlank()
-                ? bookingService.getBookingsPageByStatusInWithCustomerSearch(branchId, activityId, from, to, status, customerSearch, pageable)
-                : bookingService.getBookingsPageByStatusIn(branchId, activityId, from, to, status, pageable))
+                ? bookingService.getBookingsPageByStatusInWithCustomerSearch(branchId, activityId, from, to, status, customerSearch, linkedToOrder, pageable)
+                : bookingService.getBookingsPageByStatusIn(branchId, activityId, from, to, status, linkedToOrder, pageable))
             : bookingService.getBookingsPage(branchId, activityId, from, to, null, pageable);
         Map<String, Object> body = new HashMap<>();
         body.put("content", bookingPage.getContent());

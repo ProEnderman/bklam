@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { refreshCsrfToken } from '../../api/client'
 import { calendarService, tariffService, tariffModifierService } from '../../api/services'
 import type { Calendar, CalendarUpdateResponse, TariffPlan, TariffSpecialDateModifier } from '../../api/types'
 import DataTable from '../../components/DataTable'
@@ -335,6 +336,8 @@ export default function CalendarPage() {
     if (!currentTariffPlan) return
 
     try {
+      await refreshCsrfToken()
+
       // Преобразуем modifiers в формат для bulk upsert
       const modifiersToSave: Record<string, Record<string, any>> = {}
       Object.values(modifiers).forEach((modifier) => {
@@ -406,7 +409,16 @@ export default function CalendarPage() {
         alert('Все тарифные планы обновлены')
       }
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Не удалось сохранить модификаторы')
+      const apiMsg = error.response?.data?.message
+      const code = error.response?.data?.code
+      const text = error.message || apiMsg || 'Не удалось сохранить модификаторы'
+      if (code === 'ACCESS_DENIED' || apiMsg?.includes('запрещён')) {
+        alert(
+          `${text}\n\nЧасть данных могла уже сохраниться. Нажмите «Сохранить» ещё раз или обновите страницу (F5).`
+        )
+      } else {
+        alert(text)
+      }
     }
   }
   
