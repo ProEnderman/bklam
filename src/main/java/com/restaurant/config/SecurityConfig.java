@@ -30,6 +30,7 @@ import org.springframework.security.web.access.intercept.RequestAuthorizationCon
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfFilter;
+import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.context.SecurityContextHolderFilter;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
@@ -90,6 +91,11 @@ public class SecurityConfig {
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
     }
+
+    @Bean
+    public CsrfTokenRepository csrfTokenRepository() {
+        return CookieCsrfTokenRepository.withHttpOnlyFalse();
+    }
     
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -98,7 +104,7 @@ public class SecurityConfig {
         http
             .securityMatcher(new AntPathRequestMatcher("/**"))
             .csrf(csrf -> csrf
-                .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                .csrfTokenRepository(csrfTokenRepository())
                 .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
                 // Explicit matchers: POST /api/auth/refresh must NOT be ignored (CsrfIT).
                 .ignoringRequestMatchers(csrfIgnoredMatchers())

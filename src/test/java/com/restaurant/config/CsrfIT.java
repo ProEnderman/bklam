@@ -19,6 +19,7 @@ import jakarta.servlet.Filter;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -39,14 +40,17 @@ class CsrfIT {
     @Test
     void getCsrfEndpointSucceeds() throws Exception {
         mvc.perform(get("/api/auth/csrf"))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").isString())
+                .andExpect(jsonPath("$.headerName").value("X-XSRF-TOKEN"))
+                .andExpect(jsonPath("$.parameterName").value("_csrf"));
     }
 
     @Test
     void postWithoutCsrfTokenReturns401Or403BeforeSuccessPath() throws Exception {
         // Without refresh cookie, refresh endpoint returns 401. When CSRF runs first, missing X-XSRF-TOKEN yields 403.
         MockHttpSession session = new MockHttpSession();
-        mvc.perform(get("/api/auth/csrf").session(session)).andExpect(status().isNoContent());
+        mvc.perform(get("/api/auth/csrf").session(session)).andExpect(status().isOk());
         int status = mvc.perform(post("/api/auth/refresh").session(session).contentType(MediaType.APPLICATION_JSON))
                 .andReturn()
                 .getResponse()

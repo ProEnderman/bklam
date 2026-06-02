@@ -30,7 +30,7 @@ public class OptionGroupTemplate {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "key", nullable = false, unique = true, length = 64)
+    @Column(name = "\"key\"", nullable = false, unique = true, length = 64)
     private String key;
 
     @Column(nullable = false, length = 200)
